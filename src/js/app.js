@@ -27,17 +27,17 @@ App = {
           lang: 'pt',
           langs: {
             'en': {
-              title: 'Smart Legacy',
-              subtitle: 'Your keys, your coins, your legacy!',
+              title: 'Crypto Will',
+              subtitle: 'Your keys, your coins, your will!',
               launchDApp: 'Launch DApp',
               intro: 'Bla bla',
             },
             'pt': {
-              title: 'Smart Legacy',
-              subtitle: 'Your keys, your coins, your legacy!',
+              title: 'Crypto Will',
+              subtitle: 'Your keys, your coins, your will!',
               launchDApp: 'Acessar DApp',
               intro1: 'Com as criptomoedas, você assume o controle sobre o seu próprio dinheiro.',
-              intro2: 'Com o Smart Legacy, você garante que apenas seus herdeiros tenham acesso a ele na sua ausência.',
+              intro2: 'Com o Crypto Will, você define quem fica com ele na sua ausência.',
             }
           }
         }
