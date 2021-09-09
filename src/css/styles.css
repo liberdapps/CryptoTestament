@@ -174,7 +174,7 @@ address {
 
 ol,
 ul {
-  padding-left: 2rem;
+  padding-left: 1rem;
 }
 
 ol,
@@ -11297,10 +11297,14 @@ html {
   -webkit-text-fill-color: transparent;
 }
 
-aside,
+aside {
+  padding-top: 3rem;
+  padding-bottom: 3rem;
+}
+
 section {
-  padding-top: 5rem;
-  padding-bottom: 5rem;
+  padding-top: 3rem;
+  padding-bottom: 3rem;
 }
 
 .app-badge {
@@ -11527,8 +11531,8 @@ footer a:hover, footer a:active, footer a:focus {
 
 .masthead {
   background-color: #f8f9fa;
-  padding-top: 9.5rem;
-  padding-bottom: 5rem;
+  padding-top: 7rem;
+  padding-bottom: 2rem;
 }
 .masthead .masthead-device-mockup {
   display: flex;

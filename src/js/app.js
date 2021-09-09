@@ -2,23 +2,28 @@ App = {
   web3Provider: null,
   contracts: {},
   vueApp: null,
+  ethAcc: null,
   init: async function () {
-    // // Load pets.
-    // $.getJSON('../pets.json', function(data) {
-    //   var petsRow = $('#petsRow');
-    //   var petTemplate = $('#petTemplate');
+    return await App.initWeb3();
+  },
 
-    //   for (i = 0; i < data.length; i ++) {
-    //     petTemplate.find('.panel-title').text(data[i].name);
-    //     petTemplate.find('img').attr('src', data[i].picture);
-    //     petTemplate.find('.pet-breed').text(data[i].breed);
-    //     petTemplate.find('.pet-age').text(data[i].age);
-    //     petTemplate.find('.pet-location').text(data[i].location);
-    //     petTemplate.find('.btn-adopt').attr('data-id', data[i].id);
+initWeb3: async function () {
+  if (window.ethereum) {
+    await window.ethereum.send('eth_requestAccounts');
+    window.web3 = new Web3(window.ethereum);
+    App.web3Provider = window.web3.currentProvider;
+  }
 
-    //     petsRow.append(petTemplate.html());
-    //   }
-    // });
+  return App.initContract();
+},
+
+initContract: function () {
+  $.getJSON("CryptoWill.json", function(cryptoWill) {
+      // Instantiate a new truffle contract from the artifact
+      App.contracts.CryptoWill = TruffleContract(cryptoWill);
+      // Connect provider to interact with contract
+      App.contracts.CryptoWill.setProvider(App.web3Provider);
+
 
     Vue.component('main-page', {
       template: '#main-page-template',
@@ -47,43 +52,37 @@ App = {
     vueApp = new Vue({
       el: '#app'
     })
-    return await App.initWeb3();
-  },
-
-initWeb3: async function () {
-  /*
-   * Replace me...
-   */
-
-  return App.initContract();
+  });
 },
 
-initContract: function () {
-  /*
-   * Replace me...
-   */
+connectWallet() {
+  var ctx = this;
+     // Load account data
+     web3.eth.getCoinbase(function(err, account) {
+      if (err === null) {
+        App.ethAcc = account;
 
-  return App.bindEvents();
-},
+        App.contracts.CryptoWill.deployed().then(function(instance) {
 
-bindEvents: function () {
-  $(document).on('click', '.btn-adopt', App.handleAdopt);
-},
+          instance.bla({ from: App.ethAcc }).then(function(r){
+           // alert(r);
+          });
 
-markAdopted: function () {
-  /*
-   * Replace me...
-   */
-},
+          instance.test({ from: App.ethAcc }).then(function(r){
+            //alert(r);
+          });
 
-handleAdopt: function (event) {
-  event.preventDefault();
+          instance.test3({ from: App.ethAcc }).then(function(r){
+           // alert(r);
+          });
 
-  var petId = parseInt($(event.target).data('id'));
+        
+  
+        });
 
-  /*
-   * Replace me...
-   */
+      }
+    });
+
 }
 
 };
