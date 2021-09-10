@@ -29,15 +29,14 @@
   <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.12.4/jquery.min.js"></script>
 
   <!-- Main content -->
-  <script type="text/x-template" id="main-page-template">
+  <script type="text/x-template" id="main-template">
   <div>
     <!-- Navigation-->
     <nav class="navbar navbar-expand-lg navbar-light fixed-top shadow-sm" id="mainNav">
       <div class="container px-5">
         <a class="navbar-brand fw-bold" href="#page-top">{{langs[lang].title}}</a>
         <div>
-          <a href="app.html" target="_blank" class="btn btn-primary rounded-pill px-3 mb-2 mb-lg-0" data-bs-toggle="modal"
-            data-bs-target="#feedbackModal">
+          <a href="app.html" target="_blank" class="btn btn-primary rounded-pill px-3 mb-2 mb-lg-0">
             <span class="d-flex align-items-center">
               <span class="small">{{langs[lang].launchDApp}}</span>
             </span>
@@ -93,7 +92,7 @@
                   <div class="text-center">
                     <i class="bi-file-code icon-feature text-gradient d-block mb-0"></i>
                     <h3 class="font-alt">Contrato inteligente</h3>
-                    <p class="text-muted mb-0">Estabeleça um contrato que será automaticamente executado na blockchain do Ethereum e garanta que seu testamento seja honrado na sua ausência.</p>
+                    <p class="text-muted mb-0">Estabeleça um contrato que será automaticamente executado na blockchain do <em>Ethereum</em> e garanta que seu testamento seja honrado na sua ausência.</p>
                   </div>
                 </div>
                 <div class="col-lg-6 mb-5">
@@ -191,8 +190,22 @@
       <div class="container px-5">
         <div class="row gx-5">
           <div class="col-sm-12">
+            <h2 class="font-alt lh-1 mb-4">Posso confiar nesse serviço?</h2>
+            <p class="text-muted">A grande inovação do <em>Bitcoin</em> foi trazer um sistema de pagamentos em que não é necessário confiar cegamente no mesmo. A idéia do <strong>Don't trust, verify</strong> não é apenas um mantra, mas um fato: qualquer um pode inspecionar o código do software do <em>Bitcoin</em> e verificar se ele de fato implementa o que propõe.</p>
+            <p class="text-muted"> O mesmo fundamento existe na blockchain do <em>Ethereum</em>, onde o contrato inteligente do Crypto Will está implantado. Qualquer um pode acessar a especificação/código do contrato e verificar sua corretura e procedência. Não confia? Sem problemas! Verifque: <a href="#" target="_blank">Contrato Crypto Will</a>.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+
+        <!-- Basic features section-->
+    <section class="bg-light">
+      <div class="container px-5">
+        <div class="row gx-5">
+          <div class="col-sm-12">
             <h2 class="font-alt lh-1 mb-4">Quanto custa o serviço?</h2>
-            <p class="text-muted">Além da taxa variável da rede Ethereum, o contrato inteligente automaticamente cobra uma taxa de 1% nos seguintes casos:</p>  
+            <p class="text-muted">Além da taxa variável da rede <em>Ethereum</em>, o contrato inteligente automaticamente cobra uma taxa de 1% nos seguintes casos:</p>  
             <ol class="text-muted">
               <li>Quando uma herança é criada.</li>
               <li>Quando uma herança é resgatada. </li>
@@ -226,6 +239,8 @@
       <div class="container px-5">
         <div class="text-white-50 small">
           <div class="mb-0">{{langs[lang].title}} 2021</div>
+          <div class="mb-0">{{langs[lang].broughtBy}} <u><a href="/" target="_blank">LiberDApps</a></u>.</div>
+          <div class="mb-0"><u><a href="mailto:liberdapps@protonmail.com">liberdapps@protonmail.com</a></u></div>
         </div>
       </div>
     </footer>
