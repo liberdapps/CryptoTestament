@@ -3205,13 +3205,13 @@ textarea.form-control-lg {
 
 .btn-light {
   color: #000;
-  background-color: #f8f9fa;
-  border-color: #f8f9fa;
+  background-color: #ddd;
+  border-color: #f3f3f3;
 }
 .btn-light:hover {
   color: #000;
-  background-color: #f9fafb;
-  border-color: #f9fafb;
+  background-color: #ccc;
+  border-color: #eee;
 }
 .btn-check:focus + .btn-light, .btn-light:focus {
   color: #000;
@@ -3487,15 +3487,41 @@ textarea.form-control-lg {
   border-radius: 0.2rem;
 }
 
+.hidden {
+  display: none;
+}
+
+.fade-in-enter-active {
+  transition: opacity 300ms cubic-bezier(0.55, 0.085, 0.68, 0.53);
+}
+
+.fade-in-leave-active {
+  transition: opacity 225ms cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+.fade-in-enter,
+.fade-in-leave-to {
+  opacity: 0;
+}
+
 .fade {
   transition: opacity 0.15s linear;
 }
+
+.fadeSlow {
+  transition: opacity 1s linear;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .fade {
     transition: none;
   }
 }
 .fade:not(.show) {
+  opacity: 0;
+}
+
+.fadeSlow:not(.show) {
   opacity: 0;
 }
 
@@ -5492,6 +5518,11 @@ textarea.form-control-lg {
   transition: transform 0.3s ease-out;
   transform: translate(0, -50px);
 }
+
+.modal-backdrop+.modal-backdrop {
+  z-index:9999;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .modal.fade .modal-dialog {
     transition: none;
@@ -7765,6 +7796,11 @@ textarea.form-control-lg {
 .text-black-50 {
   --bs-text-opacity: 1;
   color: rgba(0, 0, 0, 0.5) !important;
+}
+
+.text-black-25 {
+  --bs-text-opacity: 1;
+  color: rgba(0, 0, 0, 0.25) !important;
 }
 
 .text-white-50 {
