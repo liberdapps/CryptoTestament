@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>CryptoTestament | Your coins, your testament</title>
+    <link href="css/styles.css" rel="stylesheet" />
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.12.4/jquery.min.js"></script>
+</head>
+
+<body id="dapp-page">
+    <div id="app">
+        <dapp-page>
+            <div  style="display:flex; align-items:center; justify-content: center; height:100vh">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="sr-only"></span>
+                </div>
+            </div>
+        </dapp-page>
+    </div>
+
+    <!-- Vue template -->
+    <script type="text/x-template" id="dapp-template">
+        <div>
+            <!-- Navigation-->
+            <nav class="navbar navbar-expand-lg navbar-light fixed-top shadow-sm" id="mainNav">
+                <div class="container px-5">
+                    <a class="navbar-brand fw-bold" href=".">CryptoTestament</a>
+                </div>
+            </nav>
+            <!-- Header-->
+            <header class="masthead">
+                <div class="container px-3">
+                    <div class="d-flex gx-5 align-items-center" style="flex-direction: column;">
+                        <div class="col-xs-12">
+                            <div class="mb-0 text-center">
+                                <div class="d-flex align-items-center">
+                                    <div class="px-3">
+                                        <img class="img-fluid" src="assets/img/icon.png" width="120px" />
+                                    </div>
+                                    <div>
+                                        <h1 class="display-5 lh-1 mb-2">CryptoTestament</h1>
+                                        <p class="lead fw-normal text-muted mb-0">Your coins, your testament</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </header>
+            <!-- Background -->
+            <aside class="text-center bg-gradient-primary-to-secondary">
+                <div class="container px-5">
+                    <div class="row gx-5 justify-content-center">
+                        <div class="col-sm-12">
+                            <div class="h2 fs-4 text-white mb-0">
+                                <p>With crypto, control your money.</p>
+                                <p class="mb-0">With CryptoTestament, you decide who gets it when you're gone.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </aside>
+            <!-- Main content -->
+            <div class="main">
+                <div class="container-dapp container-sm" v-if="loadingError !== null">
+                    <div class="alert alert-danger mb-0" role="alert" style="word-break: break-word;">
+                        Failure loading dApp: {{loadingError}}. If you're using a web browser, please make sure that your MetaMask wallet is connected to the
+                        <a href="https://developers.rsk.co/tutorials/ethereum-devs/remix-and-metamask-with-rsk-testnet#connect-metamask-to-rsk-testnet" target="_blank">RSK blockchain</a> and try again.
+                    </div>
+                </div>
+                <div class="container-dapp container-sm text-muted" v-if="loadingError === null">
+                    <!-- Testaments -->
+                    <div class="alert alert-info mb-4 text-center" role="alert" v-if="testament === null">You don't have a testament yet. Please use the form below to create one.<br /></div>
+                    
+                    <div v-if="testament !== null">
+                        <!-- Testament status -->
+                        <div class="card shadow rounded mb-4">
+                            <div class="card-body">
+                                <h5 class="card-title text-primary text-center mb-3">Testament status</h5>
+                                <div class="text-center">
+                                    <div v-if="testamentLocked">
+                                        <strong v-if="testamentLocked" :class="{'text-danger' : testamentNotifiable}">Locked until {{formattedUnlockTime}}</strong>
+                                        <div class="alert alert-danger text-center mt-3" v-if="testamentNotifiable">
+                                            <strong>Your testament will soon be unlocked for execution!</strong><br/>
+                                            You must make a deposit, a withdraw or edit the testament details to keep it locked.
+                                        </div>
+                                    </div>
+
+                                    <div v-if="testamentUnlocked">
+                                        <strong class="text-warning">UNLOCKED FOR EXECUTION</strong>
+                                        <div class="alert alert-warning text-center mt-3">
+                                            Your testament will be executed soon.
+                                        </div>
+                                    </div>
+
+                                    <div v-if="testamentCancelled">
+                                        <strong class="text-danger">CANCELLED</strong>
+                                        <div class="alert alert-info text-center mt-3">
+                                          You can still withdraw your funds or reactivate the testament.
+                                        </div>
+                                    </div>
+
+                                    <div v-if="testamentExecuted">
+                                        <strong class="text-success">EXECUTED</strong>
+                                        <div class="alert alert-success text-center mt-3">
+                                            Funds were transferred to the beneficiary.
+                                        </div>
+                                    </div>
+
+                                </div>
+    
+                                <div class="text-center mt-3 mb-1">
+                                    <button type="button" class="btn btn-danger" v-if="testamentLocked" @click="cancelTestament" :disabled="processing">{{processing ? "Please, wait..." : "Cancel testament"}}</button>
+                                    <button type="button" class="btn btn-success" v-if="testamentCancelled" @click="reactivateTestament" :disabled="processing">{{processing ? "Please, wait..." : "Reactivate testament"}}</button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Testament funds -->
+                        <div class="card shadow rounded mb-4" v-if="testamentLocked || testamentCancelled">
+                            <div class="card-body">
+                                <h5 class="card-title text-primary text-center mb-3">Testament funds</h5>
+    
+                                <div class="text-center mb-3" v-if="testamentLocked">
+                                    <strong>Deposit address: </strong><br />
+                                    <em>{{testament.testamentAddress}}</em>
+                                </div>
+                                <div class="alert alert-warning text-center" v-else>
+                                    You can't deposit funds because this testament has been {{testamentStatusString}}.
+                                </div>
+    
+                                <div class="text-center mb-3">
+                                    <strong>Funds available for withdraw: </strong><br />
+                                    <em>{{formattedBalance}}</em>
+                                </div>
+    
+                                <div class="text-center mb-1">
+                                    <div class="d-flex align-items justify-content-center">
+                                        <input class="form-control text-center" style="width: 50%; display: inline-block" v-model="inputFundsAmount" :disabled="processing" />
+                                        <input type="button" value="MAX" class="btn btn-light mx-2" @click="setMaxFundsAmount" :disabled="processing">
+                                    </div>
+                                    <button type="button" class="btn btn-success mt-3" @click="withdrawFunds" :disabled="!validFundsAmount || processing">{{processing ? "Please, wait..." : "Withdraw funds"}}</button>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="card shadow rounded mb-4" v-else>
+                            <div class="card-body">
+                                <h5 class="card-title text-primary text-center mb-3">Testament funds</h5>
+                                <div class="alert alert-warning text-center mb-2">
+                                    You can't deposit or withdraw funds because this testament has been {{testamentStatusString}}.
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Testament details -->
+                    <div class="card shadow rounded mb-2">
+                        <div class="card-body">
+                            <h5 class="card-title text-primary text-center mb-3">Testament details</h5>
+
+                            <div class="alert alert-warning text-center mb-3" v-if="testament !== null && !testamentLocked">
+                                You can't edit the details because this testament has been {{testamentStatusString}}.
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="txtName" autofocus class="form-label">Your name:</label>
+                                <input type="text" class="form-control" ref="txtName" :disabled="(!editMode && testament !== null) || processing" v-model="inputName" />
+                                <div class="form-text">Your name will be stored encrypted and we'll only use it to send you notifications.</div>
+                            </div>
+                            <div class="mb-3">
+                                <label for="txtContact" class="form-label">Your email:</label>
+                                <input type="text" class="form-control" :disabled="(!editMode && testament !== null) || processing" v-model="inputEmail" />
+                                <div class="form-text">Your email will be stored encrypted and we'll only use it to send you notifications.</div>
+                            </div>
+                            <div class="mb-3">
+                                <label for="txtName" autofocus class="form-label">Beneficiary name:</label>
+                                <input type="text" class="form-control" :disabled="(!editMode && testament !== null) || processing" v-model="inputBeneficiaryName" />
+                                <div class="form-text">The beneficiary name will be stored encrypted and we'll only use it to send notifications to the beneficiary.</div>
+                            </div>
+                            <div class="mb-3">
+                                <label for="txtContact" class="form-label">Beneficiary email:</label>
+                                <input type="text" class="form-control" :disabled="(!editMode && testament !== null) || processing" v-model="inputBeneficiaryEmail" />
+                                <div class="form-text">The beneficiary email will be stored encrypted and we'll only use it to send notifications to the beneficiary.</div>
+                            </div>
+                            <div class="mb-3">
+                                <label for="txtContact" class="form-label">Beneficiary wallet address:</label>
+                                <input type="text" class="form-control" :disabled="(!editMode && testament !== null) || processing" v-model="inputBeneficiaryAddress" />
+                                <div class="form-text">The wallet address of the beneficiary that will be able to claim the testament funds.</div>
+                            </div>
+                            <div class="mb-3">
+                                <label for="txtContact" class="form-label mb-0">Proof of life threshold: {{inputProofOfLife + ' days'}}</label>
+                                <input type="range" class="form-range" min="30" max="365" :disabled="(!editMode && testament !== null) || processing" v-model="inputProofOfLife" />
+                                <div class="form-text mt-0">For how many days should the testament stay locked after you send a proof of life (make a deposit, a withdraw or change the testament details)? Example: if you choose 30 days, your testament will be unlocked if more than 30 days pass since your last transaction.</div>
+                            </div>
+                            <div class="text-center mb-1">
+                                <button type="button" class="btn btn-primary" @click="editTestament" v-if="!editMode && testament !== null && testamentLocked" :disabled="processing">Edit details</button>
+                                <button type="button" class="btn btn-danger" @click="cancelTestamentChanges" v-if="editMode && testament !== null && testamentLocked" :disabled="processing">Cancel</button>
+                                <button type="button" class="btn btn-success" @click="setupTestament" v-if="editMode || testament === null" :disabled="processing || !formValid">
+                                    {{processing ? "Please, wait..." : "Save"}}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+            <!-- Footer-->
+            <footer class="bg-black text-center py-5">
+                <div class="container px-5">
+                    <div class="text-white-50 small">
+                        <div class="mb-0">CryptoTestament 2021.</div>
+                        <div class="mb-0">
+                            Brought by <u><a href="/" target="_blank">LiberDApps</a></u>.
+                        </div>
+                        <div class="mb-0">
+                            <u><a href="mailto:liberdapps@protonmail.com">liberdapps@protonmail.com</a></u>
+                        </div>
+                    </div>
+                </div>
+            </footer>
+        </div>        
+    </script>
+
+    <!-- Error modal -->
+    <div class="modal fade" id="errorModal" tabindex="-1" role="dialog" aria-labelledby="errorModalTitle" aria-hidden="true" style="z-index: 99999">
+        <div class="modal-dialog modal-dialog-centered  modal-dialog-scrollable" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+            <h5 class="modal-title text-danger" id="errorModalTitle">Error</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body" id="errorMsg">
+            </div>
+            <div class="modal-footer">
+            <button type="button" class="btn btn-primary" data-bs-dismiss="modal">OK</button>
+            </div>
+        </div>
+        </div>
+    </div>
+
+    <!-- Include all compiled plugins (below), or include individual files as needed -->
+    <script src="js/bootstrap.min.js"></script>
+    <script src="js/web3.min.js"></script>
+    <script src="js/vue.min.js"></script>
+    <script src="js/crypto.js"></script>
+    <script src="js/jsencrypt.min.js"></script>
+    <script src="js/utils.js"></script>
+    <script src="js/app.js"></script>
+    <script>if(!sessionStorage.getItem("_swa")&&document.referrer.indexOf(location.protocol+"//"+location.host)!== 0){fetch("https://counter.dev/track?"+new URLSearchParams({referrer:document.referrer,screen:screen.width+"x"+screen.height,user:"ldapps",utcoffset:"0"}))};sessionStorage.setItem("_swa","1");</script>
+</body>
+
+</html>

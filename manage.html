@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>CryptoTestament | Service Management</title>
+    <link href="css/styles.css" rel="stylesheet" />
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.12.4/jquery.min.js"></script>
+</head>
+
+<body id="dapp-page">
+    <div id="app">
+        <dapp-page>
+            <div  style="display:flex; align-items:center; justify-content: center; height:100vh">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="sr-only"></span>
+                </div>
+            </div>
+        </dapp-page>
+    </div>
+
+    <!-- Vue template -->
+    <script type="text/x-template" id="dapp-template">
+        <div>
+            <!-- Navigation-->
+            <nav class="navbar navbar-expand-lg navbar-light fixed-top shadow-sm" id="mainNav">
+                <div class="container px-5">
+                    <a class="navbar-brand fw-bold" href=".">CryptoTestament</a>
+                </div>
+            </nav>
+            <!-- Header-->
+            <header class="masthead">
+                <div class="container px-3">
+                    <div class="d-flex gx-5 align-items-center" style="flex-direction: column;">
+                        <div class="col-xs-12">
+                            <div class="mb-0 text-center">
+                                <div class="d-flex align-items-center">
+                                    <div class="px-3">
+                                        <img class="img-fluid" src="assets/img/icon.png" width="120px" />
+                                    </div>
+                                    <div>
+                                        <h1 class="display-5 lh-1 mb-2">CryptoTestament</h1>
+                                        <p class="lead fw-normal text-muted mb-0">Your coins, your testament</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </header>
+            <!-- Background -->
+            <aside class="text-center bg-gradient-primary-to-secondary">
+                <div class="container px-5">
+                    <div class="row gx-5 justify-content-center">
+                        <div class="col-sm-12">
+                            <div class="h2 fs-4 text-white mb-0">
+                                <p>With crypto, control your money.</p>
+                                <p class="mb-0">With CryptoTestament, you decide who gets it when you're gone.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </aside>
+            <!-- Main content -->
+            <div class="main">
+                <!-- Loading error -->
+                <div class="container-dapp container-sm" v-if="loadingError !== null">
+                    <div class="alert alert-danger mb-0" role="alert" style="word-break: break-word;">
+                        Failure loading dApp: {{loadingError}}. If you're using a web browser, please make sure that your MetaMask wallet is connected to the
+                        <a href="https://developers.rsk.co/tutorials/ethereum-devs/remix-and-metamask-with-rsk-testnet#connect-metamask-to-rsk-testnet" target="_blank">RSK blockchain</a> and try again.
+                    </div>
+                </div>
+                <!-- Loading done -->    
+                <div class="container-dapp container-sm text-muted" v-if="loadingError === null">
+                    <!-- Service fees  -->
+                    <div class="card shadow rounded mb-4" v-if="loadingError === null">
+                        <div class="card-body">
+                            <h5 class="card-title text-primary text-center mb-3">Services fees</h5>
+
+                            <div class="text-center mb-2">
+                                <strong>Available for withdraw: </strong><br />
+                                <em>{{formatBalance(serviceFeeBalance)}}</em>
+                            </div>
+
+                            <div class="text-center mb-2">
+                                <button type="button" class="btn btn-success mt-2" @click="withdrawServiceFees" :disabled="!serviceFeesAvailable || processing">{{processing ? "Please, wait..." : "Withdraw fees"}}</button>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- Service private key -->
+                    <div class="card shadow rounded">
+                        <div class="card-body">
+                            <h5 class="card-title text-primary text-center mb-3">Service private key</h5>
+                            <div class="text-center mb-3">
+                                <textarea class="form-control" v-model="inputServiceKey" rows="5" :disabled="processing"></textarea>
+                            </div>
+                            <div class="text-center mt-2 mb-2">
+                                <button type="button" class="btn btn-success" @click="listTestaments" :disabled="!validServiceKey || processing">{{processing ? "Please, wait..." : "List testaments"}}</button>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- Testaments -->
+                    <div v-if="testamentList !== null">
+                        <!-- Notifiable testaments -->
+                        <h3 class="text-center text-danger mt-4">Testaments to be notified</h3>
+                        <div class="alert alert-info text-center" role="alert" style="word-break: break-word;" v-if="!notifiableTestaments">
+                            No testaments.
+                        </div>
+                        <div class="card shadow rounded" v-for="testament in testamentList.notifiable" :key="testament.id">
+                            <div class="card-body">
+                                <h5 class="card-title text-primary text-center mb-3">{{testament.testamentAddress}}</h5>
+                                <div class="mb-3">
+                                    <strong>Creation time:</strong> {{formatTimestamp(testament.creationTimestamp)}}<br/>
+                                    <strong>Testator name:</strong> {{testament.decryptedInfo.name}}<br/>
+                                    <strong>Testator email:</strong> {{testament.decryptedInfo.email}}<br/>
+                                    <strong>Testator address:</strong> {{testament.testatorAddress}}<br/>
+                                    <strong>Beneficiary name:</strong> {{testament.decryptedInfo.beneficiaryName}}<br/>
+                                    <strong>Beneficiary email:</strong> {{testament.decryptedInfo.beneficiaryEmail}}<br/>
+                                    <strong>Beneficiary address:</strong> {{testament.beneficiaryAddress}}<br/>
+                                    <strong>Available funds:</strong> {{formatBalance(testament.testamentBalance)}}<br/>
+                                    <strong>Unlock time:</strong> {{formatUnlockTimestamp(testament)}}<br/>
+                                </div>
+                            </div>
+                        </div>
+                        <!-- Executable testaments -->
+                        <h3 class="text-center mt-4 text-warning">Testaments to be executed</h3>
+                        <div class="alert alert-info text-center" role="alert" style="word-break: break-word;" v-if="!executableTestaments">
+                            No testaments.
+                        </div>
+                        <div class="card shadow rounded mt-3" v-for="testament in testamentList.executable" :key="testament.id">
+                            <div class="card-body">
+                                <h5 class="card-title text-primary text-center mb-3">{{testament.testamentAddress}}</h5>
+                                <div class="mb-3">
+                                    <strong>Creation time:</strong> {{formatTimestamp(testament.creationTimestamp)}}<br/>
+                                    <strong>Testator name:</strong> {{testament.decryptedInfo.name}}<br/>
+                                    <strong>Testator email:</strong> {{testament.decryptedInfo.email}}<br/>
+                                    <strong>Testator address:</strong> {{testament.testatorAddress}}<br/>
+                                    <strong>Beneficiary name:</strong> {{testament.decryptedInfo.beneficiaryName}}<br/>
+                                    <strong>Beneficiary email:</strong> {{testament.decryptedInfo.beneficiaryEmail}}<br/>
+                                    <strong>Beneficiary address:</strong> {{testament.beneficiaryAddress}}<br/>
+                                    <strong>Available funds:</strong> {{formatBalance(testament.testamentBalance)}}<br/>
+                                    <strong>Unlock time:</strong> {{formatUnlockTimestamp(testament)}}<br/>
+                                </div>
+                                <div class="text-center mt-2 mb-2">
+                                    <button type="button" class="btn btn-success" @click="executeTestament(testament.testatorAddress)" :disabled="processing">{{processing ? "Please, wait..." : "Execute"}}</button>
+                                </div>
+                            </div>
+                        </div>
+                        <!-- Executed testaments -->
+                        <h3 class="text-center mt-4 text-success">Testaments executed</h3>
+                        <div class="alert alert-info text-center" role="alert" style="word-break: break-word;" v-if="!executedTestaments">
+                            No testaments.
+                        </div>
+                        <div class="card shadow rounded mt-3"  v-for="testament in testamentList.executed" :key="testament.id">
+                            <div class="card-body">
+                                <h5 class="card-title text-primary text-center mb-3">{{testament.testamentAddress}}</h5>
+                                <div class="mb-3">
+                                    <strong>Creation time:</strong> {{formatTimestamp(testament.creationTimestamp)}}<br/>
+                                    <strong>Testator name:</strong> {{testament.decryptedInfo.name}}<br/>
+                                    <strong>Testator email:</strong> {{testament.decryptedInfo.email}}<br/>
+                                    <strong>Testator address:</strong> {{testament.testatorAddress}}<br/>
+                                    <strong>Beneficiary name:</strong> {{testament.decryptedInfo.beneficiaryName}}<br/>
+                                    <strong>Beneficiary email:</strong> {{testament.decryptedInfo.beneficiaryEmail}}<br/>
+                                    <strong>Beneficiary address:</strong> {{testament.beneficiaryAddress}}<br/>
+                                    <strong>Execution time:</strong> {{formatTimestamp(testament.executionTimestamp)}}<br/>
+                                    <strong>Transferred funds:</strong> {{formatBalance(testament.executionBalance)}}<br/>
+                                </div>
+                            </div>
+                        </div>
+                    </div>    
+                </div>
+            </div>
+            <!-- Footer-->
+            <footer class="bg-black text-center py-5">
+                <div class="container px-5">
+                    <div class="text-white-50 small">
+                        <div class="mb-0">CryptoTestament 2021.</div>
+                        <div class="mb-0">
+                            Brought by <u><a href="/" target="_blank">LiberDApps</a></u>.
+                        </div>
+                        <div class="mb-0">
+                            <u><a href="mailto:liberdapps@protonmail.com">liberdapps@protonmail.com</a></u>
+                        </div>
+                    </div>
+                </div>
+            </footer>
+        </div>        
+    </script>
+
+    <!-- Error modal -->
+    <div class="modal fade" id="errorModal" tabindex="-1" role="dialog" aria-labelledby="errorModalTitle" aria-hidden="true" style="z-index: 99999">
+        <div class="modal-dialog modal-dialog-centered  modal-dialog-scrollable" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title text-danger" id="errorModalTitle">Error</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body" id="errorMsg">
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-primary" data-bs-dismiss="modal">OK</button>
+            </div>
+        </div>
+        </div>
+    </div>
+
+    <!-- Include all compiled plugins (below), or include individual files as needed -->
+    <script src="js/bootstrap.min.js"></script>
+    <script src="js/crypto.js"></script>
+    <script src="js/jsencrypt.min.js"></script>
+    <script src="js/web3.min.js"></script>
+    <script src="js/vue.min.js"></script>
+    <script src="js/utils.js"></script>
+    <script src="js/manage.js"></script>
+</body>
+
+</html>
