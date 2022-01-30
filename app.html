@@ -157,32 +157,32 @@
                             </div>
 
                             <div class="mb-3">
-                                <label for="txtName" autofocus class="form-label">Your name:</label>
+                                <label for="txtName" autofocus class="form-label fw-bold">Your name:</label>
                                 <input type="text" class="form-control" ref="txtName" :disabled="(!editMode && testament !== null) || processing" v-model="inputName" />
-                                <div class="form-text">Your name will be stored encrypted and we'll only use it to send you notifications.</div>
+                                <div class="form-text text-italic">When your testament is about to be executed, we'll warn you using this name.</div>
                             </div>
                             <div class="mb-3">
-                                <label for="txtContact" class="form-label">Your email:</label>
+                                <label for="txtContact" class="form-label fw-bold">Your email:</label>
                                 <input type="text" class="form-control" :disabled="(!editMode && testament !== null) || processing" v-model="inputEmail" />
-                                <div class="form-text">Your email will be stored encrypted and we'll only use it to send you notifications.</div>
+                                <div class="form-text">When your testament is about to be executed, we'll warn you using this email.</div>
                             </div>
                             <div class="mb-3">
-                                <label for="txtName" autofocus class="form-label">Beneficiary name:</label>
+                                <label for="txtName" autofocus class="form-label fw-bold">Beneficiary name:</label>
                                 <input type="text" class="form-control" :disabled="(!editMode && testament !== null) || processing" v-model="inputBeneficiaryName" />
-                                <div class="form-text">The beneficiary name will be stored encrypted and we'll only use it to send notifications to the beneficiary.</div>
+                                <div class="form-text">When the funds in the testament are transferred, we'll notify the beneficiary using this name.</div>
                             </div>
                             <div class="mb-3">
-                                <label for="txtContact" class="form-label">Beneficiary email:</label>
+                                <label for="txtContact" class="form-label fw-bold">Beneficiary email:</label>
                                 <input type="text" class="form-control" :disabled="(!editMode && testament !== null) || processing" v-model="inputBeneficiaryEmail" />
-                                <div class="form-text">The beneficiary email will be stored encrypted and we'll only use it to send notifications to the beneficiary.</div>
+                                <div class="form-text">When the funds in the testament are transferred, we'll notify the beneficiary using this email.</div>
                             </div>
                             <div class="mb-3">
-                                <label for="txtContact" class="form-label">Beneficiary wallet address:</label>
+                                <label for="txtContact" class="form-label fw-bold">Beneficiary wallet address:</label>
                                 <input type="text" class="form-control" :disabled="(!editMode && testament !== null) || processing" v-model="inputBeneficiaryAddress" />
-                                <div class="form-text">The wallet address of the beneficiary that will be able to claim the testament funds.</div>
+                                <div class="form-text">The wallet address of the beneficiary that should receive the funds locked in the testament.</div>
                             </div>
                             <div class="mb-3">
-                                <label for="txtContact" class="form-label mb-0">Proof of life threshold: {{inputProofOfLife + ' days'}}</label>
+                                <label for="txtContact" class="form-label mb-0 fw-bold">Proof of life threshold: {{inputProofOfLife + ' days'}}</label>
                                 <input type="range" class="form-range" min="30" max="365" :disabled="(!editMode && testament !== null) || processing" v-model="inputProofOfLife" />
                                 <div class="form-text mt-0">For how many days should the testament stay locked after you send a proof of life (make a deposit, a withdraw or change the testament details)? Example: if you choose 30 days, your testament will be unlocked if more than 30 days pass since your last transaction.</div>
                             </div>
