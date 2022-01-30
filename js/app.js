@@ -11,6 +11,7 @@ const App = {
     processing: false,
     testament: null,
     status: null,
+    formChanged: false,
     inputFundsAmount: "",
     inputName: "",
     inputEmail: "",
@@ -27,13 +28,33 @@ const App = {
     },
     computed: {
 
+      nameValid() {
+        return !Utils.isEmpty(this.inputName);
+      },
+
+      emailValid() {
+        return !Utils.isEmpty(this.inputEmail) && Utils.isValidEmail(this.inputEmail);
+      },
+
+      beneficiaryNameValid() {
+        return !Utils.isEmpty(this.inputBeneficiaryName);
+      },
+
+      beneficiaryEmailValid() {
+        return !Utils.isEmpty(this.inputBeneficiaryEmail) && Utils.isValidEmail(this.inputBeneficiaryEmail);
+      },
+
+      beneficiaryAddressValid() {
+        return !Utils.isEmpty(this.inputBeneficiaryAddress) && Utils.isValidAddress(this.inputBeneficiaryAddress);
+      },
+
       formValid() {
         return (
-          !Utils.isEmpty(this.inputName) &&
-          !Utils.isEmpty(this.inputEmail) && Utils.isValidEmail(this.inputEmail) &&
-          !Utils.isEmpty(this.inputBeneficiaryName) &&
-          !Utils.isEmpty(this.inputBeneficiaryEmail) && Utils.isValidEmail(this.inputBeneficiaryEmail) &&
-          !Utils.isEmpty(this.inputBeneficiaryAddress) && Utils.isValidAddress(this.inputBeneficiaryAddress) &&
+          this.nameValid &&
+          this.emailValid &&
+          this.beneficiaryNameValid &&
+          this.beneficiaryEmailValid &&
+          this.beneficiaryAddressValid &&
           Number(this.inputProofOfLife) >= 1
         );
       },
@@ -117,6 +138,10 @@ const App = {
 
     },
     methods: {
+
+      formInput() {
+        this.formChanged = true;
+      },
 
       setMaxFundsAmount() {
         this.inputFundsAmount = Utils.formatUnit(Utils.toBN(this.testament.testamentBalance), 18)
