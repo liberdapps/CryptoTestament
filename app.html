@@ -64,7 +64,7 @@
                 </div>
                 <div class="container-dapp container-sm text-muted" v-if="loadingError === null">
                     <!-- Testaments -->
-                    <div class="alert alert-info mb-4 text-center" role="alert" v-if="testament === null">You don't have a testament yet. Please use the form below to create one.<br /></div>
+                    <div class="alert alert-info mb-5 text-center" role="alert" v-if="testament === null">You don't have a testament yet. Please use the form below to create one.<br /></div>
                     
                     <div v-if="testament !== null">
                         <!-- Testament status -->
@@ -158,32 +158,32 @@
 
                             <div class="mb-3">
                                 <label for="txtName" autofocus class="form-label fw-bold">Your name:</label>
-                                <input type="text" class="form-control" ref="txtName" :disabled="(!editMode && testament !== null) || processing" v-model="inputName" />
+                                <input type="text" class="form-control" ref="txtName" :disabled="(!editMode && testament !== null) || processing" v-model="inputName" :class="{'bg-danger bg-opacity-50' : formChanged && !nameValid}" @input="formInput" />
                                 <div class="form-text text-italic">When your testament is about to be executed, we'll warn you using this name.</div>
                             </div>
                             <div class="mb-3">
                                 <label for="txtContact" class="form-label fw-bold">Your email:</label>
-                                <input type="text" class="form-control" :disabled="(!editMode && testament !== null) || processing" v-model="inputEmail" />
+                                <input type="text" class="form-control" :disabled="(!editMode && testament !== null) || processing" v-model="inputEmail" :class="{'bg-danger bg-opacity-50' : formChanged && !emailValid}" @input="formInput" />
                                 <div class="form-text">When your testament is about to be executed, we'll warn you using this email.</div>
                             </div>
                             <div class="mb-3">
                                 <label for="txtName" autofocus class="form-label fw-bold">Beneficiary name:</label>
-                                <input type="text" class="form-control" :disabled="(!editMode && testament !== null) || processing" v-model="inputBeneficiaryName" />
+                                <input type="text" class="form-control" :disabled="(!editMode && testament !== null) || processing" v-model="inputBeneficiaryName" :class="{'bg-danger bg-opacity-50' : formChanged && !beneficiaryNameValid}" @input="formInput" />
                                 <div class="form-text">When the funds in the testament are transferred, we'll notify the beneficiary using this name.</div>
                             </div>
                             <div class="mb-3">
                                 <label for="txtContact" class="form-label fw-bold">Beneficiary email:</label>
-                                <input type="text" class="form-control" :disabled="(!editMode && testament !== null) || processing" v-model="inputBeneficiaryEmail" />
+                                <input type="text" class="form-control" :disabled="(!editMode && testament !== null) || processing" v-model="inputBeneficiaryEmail" :class="{'bg-danger bg-opacity-50' : formChanged && !beneficiaryEmailValid}" @input="formInput" />
                                 <div class="form-text">When the funds in the testament are transferred, we'll notify the beneficiary using this email.</div>
                             </div>
                             <div class="mb-3">
                                 <label for="txtContact" class="form-label fw-bold">Beneficiary wallet address:</label>
-                                <input type="text" class="form-control" :disabled="(!editMode && testament !== null) || processing" v-model="inputBeneficiaryAddress" />
+                                <input type="text" class="form-control" :disabled="(!editMode && testament !== null) || processing" v-model="inputBeneficiaryAddress" :class="{'bg-danger bg-opacity-50' : formChanged && !beneficiaryAddressValid}" @input="formInput" />
                                 <div class="form-text">The wallet address of the beneficiary that should receive the funds locked in the testament.</div>
                             </div>
                             <div class="mb-3">
                                 <label for="txtContact" class="form-label mb-0 fw-bold">Proof of life threshold: {{inputProofOfLife + ' days'}}</label>
-                                <input type="range" class="form-range" min="30" max="365" :disabled="(!editMode && testament !== null) || processing" v-model="inputProofOfLife" />
+                                <input type="range" class="form-range" min="30" max="365" :disabled="(!editMode && testament !== null) || processing" v-model="inputProofOfLife" @input="formInput" />
                                 <div class="form-text mt-0">For how many days should the testament stay locked after you send a proof of life (make a deposit, a withdraw or change the testament details)? Example: if you choose 30 days, your testament will be unlocked if more than 30 days pass since your last transaction.</div>
                             </div>
                             <div class="text-center mb-1">
