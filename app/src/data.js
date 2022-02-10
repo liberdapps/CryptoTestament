@@ -7,7 +7,7 @@ export default {
         processing: false,
         testament: null,
         status: null,
-        formChanged: false,
+        formInputChanged: {testatorName: false, testatorEmail: false},
         inputFundsAmount: "",
         inputName: "",
         inputEmail: "",

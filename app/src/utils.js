@@ -1,5 +1,6 @@
-import { Utils as Web3Utils } from 'web3-utils';
+import Web3Utils from 'web3-utils';
 import CryptoJS from 'crypto-js';
+import JSEncrypt from 'jsencrypt';
 
 export const TESTAMENT_SERVICE_ABI = [
     {
@@ -306,7 +307,7 @@ export const TESTAMENT_SERVICE_ABI = [
     }
 ];
 
-export const TESTAMENT_SERVICE_ADDRESS = '0x9F386392833Fa09B9064cc49F0aCBB20d4D1937b';
+export const TESTAMENT_SERVICE_ADDRESS = '0x402FE43aE5d4F8Cc93Df705cf745c63E6E4a190d'; //'0x9F386392833Fa09B9064cc49F0aCBB20d4D1937b';
 
 export const TESTAMENT_NOTIFY_THRESHOLD = 7 * 24 * 3600;
 
@@ -422,6 +423,13 @@ export function formatUnit(value, decimals) {
     return value;
 }
 
+export function encryptUsingServiceKey(data) {
+    let jsEncrypt = new JSEncrypt();
+    jsEncrypt.setPublicKey(this.SERVICE_PUBLIC_KEY);
+    return jsEncrypt.encrypt(data);
+}
+
+
 export function parseTestament(data, testament, encryptionKey) {
     let decryptedInfo = JSON.parse(CryptoJS.AES.decrypt(testament.encryptedInfo, encryptionKey).toString(CryptoJS.enc.Utf8));
 
@@ -434,4 +442,60 @@ export function parseTestament(data, testament, encryptionKey) {
     data.status = testament.status;
 
     data.testament = testament;
+}
+
+
+export function encryptTestament(name, email, beneficiaryName, beneficiaryEmail, encryptionKey) {
+    let info = {
+        name: name,
+        email: email,
+        beneficiaryName: beneficiaryName,
+        beneficiaryEmail: beneficiaryEmail
+    };
+
+    return CryptoJS.AES.encrypt(JSON.stringify(info), encryptionKey).toString();
+}
+
+export function invokeMethodAndWaitConfirmation(web3, contractMethod, walletAddress, onSuccessCallback, onErrorCallback) {
+    let timer = null;
+    let onErrorCalled = false;
+    let onSuccessCalled = false;
+
+    function stopTimer() {
+        if (timer !== null) {
+            clearInterval(timer);
+            timer = null;
+        }
+    }
+
+    function onError(err) {
+        if (onErrorCalled) {
+            return;
+        }
+        onErrorCalled = true;
+        stopTimer();
+        onErrorCallback(err);
+    }
+
+    async function monitorTx(hash) {
+        let tx = await web3.eth.getTransactionReceipt(hash);
+        if (tx) {
+            if (tx.status) {
+                stopTimer();
+                if (onSuccessCalled) {
+                    return;
+                }
+                onSuccessCalled = true;
+                onSuccessCallback();
+            } else {
+                onError('Transaction failed. Please try again later.');
+            }
+        }
+    }
+
+    contractMethod.send({ from: walletAddress, value: 0 })
+        .on('transactionHash', function (hash) {
+            timer = setInterval(function () { monitorTx(hash) }, 5000);
+        })
+        .on('error', onError);
 }

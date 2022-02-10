@@ -16,7 +16,6 @@
                   <div class="h2 fs-3 text-white mb-0">
                       <p>With crypto, control your money.</p>
                       <p class="mb-0">With CryptoTestament, you decide who gets it after you're gone.</p>
-                      {{walletAddress}}
                   </div>
               </div>
           </div>
@@ -26,8 +25,7 @@
   <div class="main" style="padding-top: 1.5rem; padding-bottom: 1rem">
       <div class="container-dapp container-sm" v-if="loadingError !== null">
           <div class="alert alert-danger mb-1" role="alert" style="word-break: break-word;">
-              Failure loading dApp: {{loadingError}}. If you're using a web browser, please make sure that your MetaMask wallet is connected to the
-              <a href="https://developers.rsk.co/tutorials/ethereum-devs/remix-and-metamask-with-rsk-testnet#connect-metamask-to-rsk-testnet" target="_blank">RSK blockchain</a> and try again.
+              Failure loading dApp: {{loadingError}}.
           </div>
       </div>
       <div class="container-dapp container-sm text-muted" v-if="loadingError === null">
@@ -85,7 +83,7 @@
 
                       <div class="text-center mb-3" v-if="testamentLocked">
                           <strong>Deposit address: </strong><br />
-                          <em>{{testament.testamentAddress}}</em>
+                          <em>{{formattedTestamentAddress}}</em>
                       </div>
                       <div class="alert alert-warning text-center" v-else>
                           You can't deposit funds because this testament has been {{testamentStatusString}}.
@@ -126,27 +124,27 @@
 
                   <div class="mb-3">
                       <label for="txtName" autofocus class="form-label fw-bold">Your name:</label>
-                      <input type="text" class="form-control" ref="txtName" :disabled="(!editMode && testament !== null) || processing" v-model="inputName" :class="{'bg-danger bg-opacity-50' : formChanged && !nameValid}" @input="formInput" />
+                      <input type="text" class="form-control" ref="txtName" :disabled="(!editMode && testament !== null) || processing" v-model="inputName" :class="{'bg-danger bg-opacity-50' : formInputChanged['testatorName'] && !nameValid}" @input="formChanged('testatorName')" />
                       <div class="form-text text-italic">When your testament is about to be executed, we'll warn you using this name.</div>
                   </div>
                   <div class="mb-3">
                       <label for="txtContact" class="form-label fw-bold">Your email:</label>
-                      <input type="text" class="form-control" :disabled="(!editMode && testament !== null) || processing" v-model="inputEmail" :class="{'bg-danger bg-opacity-50' : formChanged && !emailValid}" @input="formInput" />
+                      <input type="text" class="form-control" :disabled="(!editMode && testament !== null) || processing" v-model="inputEmail" :class="{'bg-danger bg-opacity-50' : formInputChanged['testatorEmail'] && !emailValid}" @input="formChanged('testatorEmail')" />
                       <div class="form-text">When your testament is about to be executed, we'll warn you using this email.</div>
                   </div>
                   <div class="mb-3">
                       <label for="txtName" autofocus class="form-label fw-bold">Beneficiary name:</label>
-                      <input type="text" class="form-control" :disabled="(!editMode && testament !== null) || processing" v-model="inputBeneficiaryName" :class="{'bg-danger bg-opacity-50' : formChanged && !beneficiaryNameValid}" @input="formInput" />
+                      <input type="text" class="form-control" :disabled="(!editMode && testament !== null) || processing" v-model="inputBeneficiaryName" :class="{'bg-danger bg-opacity-50' : formInputChanged['beneficiaryName'] && !beneficiaryNameValid}" @input="formChanged('beneficiaryName')" />
                       <div class="form-text">When the funds in the testament are transferred, we'll notify the beneficiary using this name.</div>
                   </div>
                   <div class="mb-3">
                       <label for="txtContact" class="form-label fw-bold">Beneficiary email:</label>
-                      <input type="text" class="form-control" :disabled="(!editMode && testament !== null) || processing" v-model="inputBeneficiaryEmail" :class="{'bg-danger bg-opacity-50' : formChanged && !beneficiaryEmailValid}" @input="formInput" />
+                      <input type="text" class="form-control" :disabled="(!editMode && testament !== null) || processing" v-model="inputBeneficiaryEmail" :class="{'bg-danger bg-opacity-50' : formInputChanged['beneficiaryEmail'] && !beneficiaryEmailValid}" @input="formChanged('beneficiaryEmail')" />
                       <div class="form-text">When the funds in the testament are transferred, we'll notify the beneficiary using this email.</div>
                   </div>
                   <div class="mb-3">
                       <label for="txtContact" class="form-label fw-bold">Beneficiary wallet address:</label>
-                      <input type="text" class="form-control" :disabled="(!editMode && testament !== null) || processing" v-model="inputBeneficiaryAddress" :class="{'bg-danger bg-opacity-50' : formChanged && !beneficiaryAddressValid}" @input="formInput" />
+                      <input type="text" class="form-control" :disabled="(!editMode && testament !== null) || processing" v-model="inputBeneficiaryAddress" :class="{'bg-danger bg-opacity-50' : formInputChanged['beneficiaryAddress'] && !beneficiaryAddressValid}" @input="formChanged('beneficiaryAddress')" />
                       <div class="form-text">The wallet address of the beneficiary that should receive the funds locked in the testament.</div>
                   </div>
                   <div class="mb-3">
@@ -155,7 +153,7 @@
                       <div class="form-text mt-0">For how many days should the testament stay locked after you send a proof of life (make a deposit, a withdraw or change the testament details)? Example: if you choose 30 days, your testament will be unlocked if more than 30 days pass since your last transaction.</div>
                   </div>
                   <div class="text-center mb-1">
-                      <button type="button" class="btn btn-primary" @click="editTestament" v-if="!editMode && testament !== null && testamentLocked" :disabled="processing">Edit details</button>
+                      <button type="button" class="btn btn-primary" @click="editTestament" v-if="!editMode && testament !== null && testamentLocked" :disabled="processing">{{processing ? "Please, wait..." : "Edit details"}}</button>
                       <button type="button" class="btn btn-danger" @click="cancelTestamentChanges" v-if="editMode && testament !== null && testamentLocked" :disabled="processing">Cancel</button>
                       <button type="button" class="btn btn-success" @click="setupTestament" v-if="editMode || testament === null" :disabled="processing || !formValid">
                           {{processing ? "Please, wait..." : "Save"}}
@@ -178,9 +176,11 @@
 </template>
 
 <script>
-//import wallet from './wallet.js';
-import * as Utils from './utils';
 import AppData from './data';
+import wallet from './wallet.js';
+import * as Utils from './utils';
+
+const $ = window.jQuery;
 
 export default {
   name: 'App',
@@ -207,7 +207,7 @@ export default {
     },
 
     beneficiaryAddressValid() {
-      return !Utils.isEmpty(this.inputBeneficiaryAddress) && Utils.isValidAddress(this.inputBeneficiaryAddress);
+      return !Utils.isEmpty(this.inputBeneficiaryAddress) && Utils.isValidAddress(this.inputBeneficiaryAddress.toLowerCase());
     },
 
     formValid() {
@@ -229,6 +229,13 @@ export default {
       } catch (err) {
         return false;
       }
+    },
+
+    formattedTestamentAddress() {
+      if (this.testament) {
+        return this.testament.testamentAddress.toLowerCase();
+      }
+      return null;
     },
 
     formattedUnlockTime() {
@@ -297,7 +304,201 @@ export default {
     testamentExecuted() {
       return this.testament && this.testament.status === '2';
     }
-  }
+  },
+
+  methods: {
+
+      formChanged(fieldName) {
+        this.formInputChanged[fieldName] = true;
+      },
+
+      setMaxFundsAmount() {
+        this.inputFundsAmount = Utils.formatUnit(Utils.toBN(this.testament.testamentBalance), 18)
+      },
+     
+      async setupTestament() {
+
+        let name = this.inputName.trim();
+        let email = this.inputEmail.trim();
+        let beneficiaryName = this.inputBeneficiaryName.trim();
+        let beneficiaryEmail = this.inputBeneficiaryEmail.trim();
+        let beneficiaryAddress = this.inputBeneficiaryAddress.trim().toLowerCase();
+        let proofOfLifeThreshold = Number(this.inputProofOfLife) * 24 * 3600;
+        let ctx = this;
+
+        let encryptedInfo = Utils.encryptTestament(name, email, beneficiaryName, beneficiaryEmail, wallet.encryptionKey);
+
+        function onError(err) {
+          ctx.processing = false;
+          console.log(err);
+
+          // Error 4001 means that user just denied the signature of the transaction, no need to show an error.
+          // The 'Invalid JSON RPC response' is a workaround for the RSK wallet which doesn't provide a good error code...
+          if (err.code !== 4001 && String(err).indexOf("Invalid JSON RPC response") === -1) {
+            let errorMsg = err;
+            if (err.message && err.message.trim().length > 0) {
+              errorMsg = err.message;
+            }
+            $("#errorMsg").text(errorMsg);
+            $("#errorModal").modal('show');
+          }
+        }
+
+        this.processing = true;
+
+        let encryptedEncryptionKey = Utils.encryptUsingServiceKey(wallet.encryptionKey);
+        
+        Utils.invokeMethodAndWaitConfirmation(
+          wallet.web3Instance,
+          wallet.testamentServiceContract.methods.setupTestament(beneficiaryAddress, proofOfLifeThreshold, encryptedEncryptionKey, encryptedInfo), 
+          this.walletAddress,
+          async function() {
+            try {
+              let testament =  await wallet.testamentServiceContract.methods.testamentDetailsOf(ctx.walletAddress).call();
+              Utils.parseTestament(ctx, testament, wallet.encryptionKey);
+              ctx.processing = false;
+              ctx.editMode = false;
+            } catch (err) {
+              onError(err);
+            }
+          },
+          function(err) {
+            onError(err);
+          }
+        );
+      },
+
+      editTestament() {
+        this.editMode = true;
+        this.$nextTick(() => this.$refs.txtName.focus());
+      },
+
+      cancelTestamentChanges() {
+        this.editMode = false;
+        Utils.parseTestament(this, this.testament, wallet.encryptionKey);
+      },
+
+      async cancelTestament() {
+        let ctx = this;
+        this.processing = true;
+
+        function onError(err) {
+          ctx.processing = false;
+          console.log(err);
+
+          // Error 4001 means that user just denied the signature of the transaction, no need to show an error.
+          // The 'Invalid JSON RPC response' is a workaround for the RSK wallet which doesn't provide a good error code...
+          if (err.code !== 4001 && String(err).indexOf("Invalid JSON RPC response") === -1) {
+            let errorMsg = err;
+            if (err.message && err.message.trim().length > 0) {
+              errorMsg = err.message;
+            }
+            $("#errorMsg").text(errorMsg);
+            $("#errorModal").modal('show');
+          }
+        }
+        
+        Utils.invokeMethodAndWaitConfirmation(
+          wallet.web3Instance,
+          wallet.testamentServiceContract.methods.cancelTestament(), 
+          this.walletAddress,
+          async function() {
+            try {
+              let testament =  await wallet.testamentServiceContract.methods.testamentDetailsOf(ctx.walletAddress).call();
+              Utils.parseTestament(ctx, testament, wallet.encryptionKey);
+              ctx.cancelTestamentChanges();         
+              ctx.processing = false;
+            } catch (err) {
+              onError(err);
+            }
+          },
+          function(err) {
+            onError(err);
+          }
+        );       
+      },
+
+      async reactivateTestament() {
+        let ctx = this;
+        this.processing = true;
+
+        function onError(err) {
+          ctx.processing = false;
+          console.log(err);
+
+          // Error 4001 means that user just denied the signature of the transaction, no need to show an error.
+          // The 'Invalid JSON RPC response' is a workaround for the RSK wallet which doesn't provide a good error code...
+          if (err.code !== 4001 && String(err).indexOf("Invalid JSON RPC response") === -1) {
+            let errorMsg = err;
+            if (err.message && err.message.trim().length > 0) {
+              errorMsg = err.message;
+            }
+            $("#errorMsg").text(errorMsg);
+            $("#errorModal").modal('show');
+          }
+        }
+        
+        Utils.invokeMethodAndWaitConfirmation(
+          wallet.web3Instance,
+          wallet.testamentServiceContract.methods.reactivateTestament(), 
+          this.walletAddress,
+          async function() {
+            try {
+              let testament =  await wallet.testamentServiceContract.methods.testamentDetailsOf(ctx.walletAddress).call();
+              Utils.parseTestament(ctx, testament, wallet.encryptionKey);
+              ctx.cancelTestamentChanges();         
+              ctx.processing = false;
+            } catch (err) {
+              onError(err);
+            }
+          },
+          function(err) {
+            onError(err);
+          }
+        );       
+      },
+
+      async withdrawFunds() {
+        let ctx = this;
+        this.processing = true;
+
+        function onError(err) {
+          ctx.processing = false;
+          console.log(err);
+
+          // Error 4001 means that user just denied the signature of the transaction, no need to show an error.
+          // The 'Invalid JSON RPC response' is a workaround for the RSK wallet which doesn't provide a good error code...
+          if (err.code !== 4001 && String(err).indexOf("Invalid JSON RPC response") === -1) {
+            let errorMsg = err;
+            if (err.message && err.message.trim().length > 0) {
+              errorMsg = err.message;
+            }
+            $("#errorMsg").text(errorMsg);
+            $("#errorModal").modal('show');
+          }
+        }
+        
+        Utils.invokeMethodAndWaitConfirmation(
+          wallet.web3Instance,
+          wallet.testamentServiceContract.methods.withdrawTestamentFunds(Utils.toBaseUnit(this.inputFundsAmount.trim(), 18).toString()), 
+          this.walletAddress,
+          async function() {
+            try {
+              let testament =  await wallet.testamentServiceContract.methods.testamentDetailsOf(ctx.walletAddress).call();
+              Utils.parseTestament(ctx, testament, wallet.encryptionKey);
+              ctx.cancelTestamentChanges();
+              ctx.inputFundsAmount = "";         
+              ctx.processing = false;
+            } catch (err) {
+              onError(err);
+            }
+          },
+          function(err) {
+            onError(err);
+          }
+        );       
+      }
+    }
 
 }
 </script>
