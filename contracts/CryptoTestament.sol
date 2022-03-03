@@ -251,7 +251,7 @@ contract CryptoTestamentService {
       */ 
     function setServiceFeeRate(uint256 _serviceFeeRate) external {
         // Only the service owner can call this function.
-        require (msg.sender == serviceOwner, "Cannot set service fees: sender is not the service owner.");
+        require (msg.sender == serviceOwner, "Cannot set service fee rate: sender is not the service owner.");
         serviceFeeRate = _serviceFeeRate;
     }
 
