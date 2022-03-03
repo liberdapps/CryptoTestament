@@ -3,21 +3,21 @@ pragma solidity >=0.8.7;
 
 // Testament statuses.
 enum TestamentStatus {LOCKED, CANCELLED, EXECUTED}
- 
+  
 contract CryptoTestament {
-
+ 
     // Service details.
-    address public serviceAddress;
-    uint256 public serviceFeeRate;
+    address immutable public serviceAddress;
+    uint256 immutable public serviceFeeRate;
   
     // Testament details.
-    uint256 public creationTimestamp;
-    address public testatorAddress;
+    uint256 immutable public creationTimestamp; 
+    address immutable public testatorAddress;
     address public beneficiaryAddress;
-    uint256 public proofOfLifeThreshold;
+    uint256 public proofOfLifeThreshold; 
     uint256 public lastProofOfLifeTimestamp; 
-    string public encryptedKey;
-    string public encryptedInfo;
+    string  public encryptedKey;
+    string  public encryptedInfo;
     uint256 public executionTimestamp;
     uint256 public executionBalance; 
     TestamentStatus public status; 
@@ -31,13 +31,13 @@ contract CryptoTestament {
                  string memory _encryptedKey, string memory _encryptedInfo) {
 
         // Sanity checks.             
-        require (_serviceAddress != address(0x0));
-        require (_serviceFeeRate > 0);
-        require (_testatorAddress != address(0x0));
-        require (_beneficiaryAddress != address(0x0));
-        require (_proofOfLifeThreshold >= 30 days);
-        require (bytes(_encryptedKey).length > 0);
-        require (bytes(_encryptedInfo).length > 0);
+        require (_serviceAddress != address(0x0), "Service address must be non-null.");
+        require (_serviceFeeRate > 0, "Service fee rate must be > 0.");
+        require (_testatorAddress != address(0x0), "Testator address must be non-null.");
+        require (_beneficiaryAddress != address(0x0), "Beneficiary address must be non-null.");
+        require (_proofOfLifeThreshold >= 30 days, "Proof of life threshold must be >= 30 days.");
+        require (bytes(_encryptedKey).length > 0, "Encrypted key must be set.");
+        require (bytes(_encryptedInfo).length > 0, "Encrypted testament info must be set.");
 
         // Set service details.
         serviceAddress = _serviceAddress;
@@ -58,15 +58,18 @@ contract CryptoTestament {
       * Receive deposits in the testament.
       */ 
     receive() external payable {
-        // Only allow deposits if testament is still locked.
-        require (status == TestamentStatus.LOCKED);
-        require (block.timestamp - lastProofOfLifeTimestamp <= proofOfLifeThreshold);
+        // Only allow the testator to make deposits.
+        require (msg.sender == testatorAddress, "Cannot deposit funds: sender is not the testator.");
+
+        // Only allow deposits if testament is still locked and the last proof of life is still active.
+        require (status == TestamentStatus.LOCKED, "Cannot deposit funds: testament is not LOCKED.");
+        require (block.timestamp - lastProofOfLifeTimestamp <= proofOfLifeThreshold, "Cannot deposit funds: last proof of life has expired.");
  
         // Calculate and pay service fees.
         uint256 serviceFee = (msg.value * serviceFeeRate) / 10000;
         if (serviceFee > 0) {
             (bool sent, ) = serviceAddress.call{value: serviceFee}("");
-            require (sent, "Send failed.");
+            require (sent, "Cannot deposit funds: send failed.");
         }
 
         // Update proof of life.
@@ -84,19 +87,19 @@ contract CryptoTestament {
       * Allow testators to withdraw funds locked in their testaments.
       */
     function withdrawFunds(uint256 amount) external {
-        // Only allow the testator to cancel the testament, either directly or via service contract.
-        require (msg.sender == testatorAddress || msg.sender == serviceAddress);
+        // Only allow the testator to withdraw testament funds, either directly or via service contract.
+        require (msg.sender == testatorAddress || msg.sender == serviceAddress, "Cannot withdraw testament funds: sender is not the testator.");
 
         // Funds can only be withdrawn if the testament is either LOCKED or CANCELLED.
-        require (status == TestamentStatus.LOCKED || status == TestamentStatus.CANCELLED);
+        require (status == TestamentStatus.LOCKED || status == TestamentStatus.CANCELLED, "Cannot withdraw testament funds: testament is not LOCKED/CANCELLED.");
 
         // Validate amount.
-        require (amount <= this.contractBalance());
+        require (amount <= this.contractBalance(), "Cannot withdraw testament funds: amount should be <= the testament balance.");
 
         // If the status is LOCKED, make sure that the last proof of life is still active,
         // otherwise, the testament is effectively unlocked for execution, and withdrawn will not be possible.
         if (status == TestamentStatus.LOCKED) {
-            require (block.timestamp - lastProofOfLifeTimestamp <= proofOfLifeThreshold);
+            require (block.timestamp - lastProofOfLifeTimestamp <= proofOfLifeThreshold, "Cannot withdraw testament funds: last proof of life has expired.");
 
             // Withdrawing funds from a locked testament counts as a proof of life.
             lastProofOfLifeTimestamp = block.timestamp;
@@ -104,7 +107,7 @@ contract CryptoTestament {
 
         // Transfer funds to the testator.
         (bool sent, ) = testatorAddress.call{value: amount}("");
-        require (sent, "Send failed.");
+        require (sent, "Cannot withdraw testament funds: send failed.");
     }
 
     /**
@@ -114,17 +117,17 @@ contract CryptoTestament {
                            string memory _encryptedKey, string memory _encryptedInfo) external {
 
         // Only allow the testator to make changes in the testament, either directly or via service contract.
-        require (msg.sender == testatorAddress || msg.sender == serviceAddress);
+        require (msg.sender == testatorAddress || msg.sender == serviceAddress, "Cannot update testament: sender is not the testator.");
 
-        // Allow changes only if the testament is still locked.
-        require (status == TestamentStatus.LOCKED);
-        require (block.timestamp - lastProofOfLifeTimestamp <= proofOfLifeThreshold);
+        // Allow changes only if the testament is still locked and the last proof of life is still active.
+        require (status == TestamentStatus.LOCKED, "Cannot update testament: testament is not LOCKED.");
+        require (block.timestamp - lastProofOfLifeTimestamp <= proofOfLifeThreshold, "Cannot update testament: last proof of life has expired.");
 
         // Sanity checks.
-        require (_beneficiaryAddress != address(0x0));
-        require (_proofOfLifeThreshold >= 30 days);
-        require (bytes(_encryptedKey).length > 0);
-        require (bytes(_encryptedInfo).length > 0);
+        require (_beneficiaryAddress != address(0x0), "Cannot update testament: beneficiary address must be non-null.");
+        require (_proofOfLifeThreshold >= 30 days, "Cannot update testament: proof of life threshold must be >= 30 days.");
+        require (bytes(_encryptedKey).length > 0, "Cannot update testament: encrypted key must be set.");
+        require (bytes(_encryptedInfo).length > 0, "Cannot update testament: encrypted testament info must be set.");
 
         // Update details.
         beneficiaryAddress = _beneficiaryAddress;
@@ -141,13 +144,13 @@ contract CryptoTestament {
       */
     function cancelTestament() external {
         // Only allow the testator to cancel the testament, either directly or via service contract.
-        require (msg.sender == testatorAddress || msg.sender == serviceAddress);
+        require (msg.sender == testatorAddress || msg.sender == serviceAddress, "Cannot cancel testament: sender is not the testator.");
 
         // In order to cancel a testament:
         //   - Status should still be LOCKED.
         //   - Last proof of life should still be active.
-        require (status == TestamentStatus.LOCKED);
-        require (block.timestamp - lastProofOfLifeTimestamp <= proofOfLifeThreshold);
+        require (status == TestamentStatus.LOCKED, "Cannot cancel testament: testament is not LOCKED.");
+        require (block.timestamp - lastProofOfLifeTimestamp <= proofOfLifeThreshold, "Cannot cancel testament: last proof of life has expired.");
 
         // Update status.
         status = TestamentStatus.CANCELLED;
@@ -158,10 +161,10 @@ contract CryptoTestament {
       */ 
     function reactivateTestament() external {
         // Only allow the testator to cancel the testament, either directly or via service contract.
-        require (msg.sender == testatorAddress || msg.sender == serviceAddress);
+        require (msg.sender == testatorAddress || msg.sender == serviceAddress, "Cannot reactivate testament: sender is not the testator.");
 
         // Only cancelled testaments can be reactivated.
-        require (status == TestamentStatus.CANCELLED);
+        require (status == TestamentStatus.CANCELLED, "Cannot reactivate testament: testament is not CANCELLED.");
 
         // Update status and proof of life.
         status = TestamentStatus.LOCKED;
@@ -177,8 +180,8 @@ contract CryptoTestament {
         //   - Last proof of life should be expired.
         //
         // Under such conditions, testament will be effectively unlocked for execution.
-        require (status == TestamentStatus.LOCKED);
-        require (block.timestamp - lastProofOfLifeTimestamp > proofOfLifeThreshold);
+        require (status == TestamentStatus.LOCKED, "Cannot execute testament: testament is not LOCKED.");
+        require (block.timestamp - lastProofOfLifeTimestamp > proofOfLifeThreshold, "Cannot execute testament: last proof of life is still active.");
 
         // Update execution status.
         status = TestamentStatus.EXECUTED;
@@ -187,14 +190,14 @@ contract CryptoTestament {
 
         // Transfer funds to the beneficiary.
         (bool sent, ) = beneficiaryAddress.call{value: executionBalance}("");
-        require (sent, "Send failed.");
+        require (sent, "Cannot execute testament: send failed.");
     }
 }
 
 contract CryptoTestamentService {
  
     // Service fee details.
-    address public serviceOwner;
+    address immutable public serviceOwner;
     uint256 public serviceFeeRate;
  
     // Deployed testaments.
@@ -248,7 +251,7 @@ contract CryptoTestamentService {
       */ 
     function setServiceFeeRate(uint256 _serviceFeeRate) external {
         // Only the service owner can call this function.
-        require (msg.sender == serviceOwner);
+        require (msg.sender == serviceOwner, "Cannot set service fees: sender is not the service owner.");
         serviceFeeRate = _serviceFeeRate;
     }
 
@@ -257,11 +260,11 @@ contract CryptoTestamentService {
       */ 
     function withdrawServiceFees() external {
         // Only the service owner can call this function.
-        require (msg.sender == serviceOwner);
+        require (msg.sender == serviceOwner, "Cannot withdraw service fees: sender is not the service owner.");
 
         // Transfer funds.
         (bool sent, ) = serviceOwner.call{value: this.contractBalance()}("");
-        require (sent, "Send failed.");
+        require (sent, "Cannot withdraw service fees: send failed.");
     }
 
     /**
@@ -300,7 +303,7 @@ contract CryptoTestamentService {
     function cancelTestament() external {
         // Check existing testament for sender.                            
         CryptoTestament testament = testamentOf[msg.sender];
-        require (address(testament) != address(0x0), "No testament found for sender.");
+        require (address(testament) != address(0x0), "Cannot cancel testament: testament not found.");
 
         // Cancel testament.
         testament.cancelTestament();
@@ -312,7 +315,7 @@ contract CryptoTestamentService {
     function reactivateTestament() external {
         // Check existing testament for sender.                            
         CryptoTestament testament = testamentOf[msg.sender];
-        require (address(testament) != address(0x0), "No testament found for sender.");
+        require (address(testament) != address(0x0), "Cannot reactivate testament: testament not found.");
 
         // Reactivate testament.
         testament.reactivateTestament();
@@ -324,27 +327,27 @@ contract CryptoTestamentService {
     function withdrawTestamentFunds(uint256 amount) external {
         // Check existing testament for sender.                            
         CryptoTestament testament = testamentOf[msg.sender];
-        require (address(testament) != address(0x0), "No testament found for sender.");
+        require (address(testament) != address(0x0), "Cannot withdraw testament funds: testament not found.");
 
         // Reactivate testament.
         testament.withdrawFunds(amount);    
     }
 
     /**
-      * Allow anyone to execute a testament given a testator adresses, transfering funds to the
+      * Allow anyone to execute a testament given a testator address, transfering funds to the
       * beneficiary specified in the testament.
       */ 
     function executeTestamentOf(address testatorAddress) external {
         // Check existing testament for specified testator address.                            
         CryptoTestament testament = testamentOf[testatorAddress];
-        require (address(testament) != address(0x0), "No testament found for specified address.");
+        require (address(testament) != address(0x0), "Cannot execute testament: testament not found.");
 
         // Execute testament.
         testament.executeTestament(); 
     }
 
     /**
-      * Retrieve testament details for a given testator adresses.
+      * Retrieve testament details for a given testator address.
       */ 
     function testamentDetailsOf(address testatorAddress) public view returns (Testament memory) {
         Testament memory info;
