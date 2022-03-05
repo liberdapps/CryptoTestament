@@ -55,6 +55,50 @@ contract('CryptoTestament', function (accounts) {
     assert.equal(false, nonExistingTestament.exists, 'Check non-existing testament info.');
   });
 
+  it('Try and fail to cancel non-existing testament', async function() {
+    let errorRaised = false;
+    try {
+      await serviceInstance.cancelTestament({from: randomAddress});
+    } catch (err) {
+      assert.equal(err.reason, 'Cannot cancel testament: testament not found.', 'Check error reason.');
+      errorRaised = true;
+    }
+    assert.equal(errorRaised, true, 'Assert failure.');
+  });
+  
+  it('Try and fail to reactivate non-existing testament', async function() {
+    let errorRaised = false;
+    try {
+      await serviceInstance.reactivateTestament({from: randomAddress});
+    } catch (err) {
+      assert.equal(err.reason, 'Cannot reactivate testament: testament not found.', 'Check error reason.');
+      errorRaised = true;
+    }
+    assert.equal(errorRaised, true, 'Assert failure.');
+  });
+
+  it('Try and fail to execute non-existing testament', async function() {
+    let errorRaised = false;
+    try {
+      await serviceInstance.executeTestamentOf(randomAddress, {from: randomAddress});
+    } catch (err) {
+      assert.equal(err.reason, 'Cannot execute testament: testament not found.', 'Check error reason.');
+      errorRaised = true;
+    }
+    assert.equal(errorRaised, true, 'Assert failure.');
+  });
+
+  it('Try and fail to withdraw funds from non-existing testament', async function () {
+    let errorRaised = false;
+    try {
+      await serviceInstance.withdrawTestamentFunds(web3.utils.toWei('0.01', 'ether'), { from: randomAddress });
+    } catch (err) {
+      assert.equal(err.reason, 'Cannot withdraw testament funds: testament not found.', 'Check error reason.');
+      errorRaised = true;
+    }
+    assert.equal(errorRaised, true, 'Assert failure.');
+  });
+  
   it('Try and fail to create new testament - Invalid proof of life threshold', async function () {
     let errorRaised = false;
     try {
@@ -95,8 +139,80 @@ contract('CryptoTestament', function (accounts) {
     assert.equal(1, testaments.length, 'Check testament list.');
     assert.equal(_.isEqual(testaments[0], testamentInfo), true, 'Check testament info.');
 
-    // TODO: check individual feilds.
+    let creationTimestamp = web3.utils.toBN(testamentInfo.creationTimestamp);
+    let lastProofOfLifeTimestamp = web3.utils.toBN(testamentInfo.lastProofOfLifeTimestamp);
 
+    assert(creationTimestamp.gt(web3.utils.toBN('0')), 'Check creation timestamp.');
+    assert.equal(testamentInfo.testatorAddress, testatorAddress, 'Check testator address.');
+    assert.equal(testamentInfo.testamentBalance, '0', 'Check testament balance.');
+    assert.equal(testamentInfo.beneficiaryAddress, beneficiaryAddress, 'Check beneficiary address.');
+    assert.equal(testamentInfo.proofOfLifeThreshold, 30 * 24 * 3600, 'Check proof of life threshold.');
+    assert.equal(creationTimestamp.toString(), lastProofOfLifeTimestamp.toString(), 'Check last proof of life timestamp.');
+    assert.equal(testamentInfo.encryptedKey, 'encryptedKey', 'Check encrypted key.');
+    assert.equal(testamentInfo.encryptedInfo, 'encryptedInfo', 'Check encrypted information.');
+    assert.equal(testamentInfo.executionTimestamp, '0', 'Check execution timestamp.');
+    assert.equal(testamentInfo.executionBalance, '0', 'Check execution balance.');
+    assert.equal(testamentInfo.status, '0', 'Check status.');
+    assert.equal(testamentInfo.exists, true, 'Check existence flag.');
+
+  });
+
+  it('Try and fail to update a testament using a non-testator address', async function() {
+    let testamentInfo = await serviceInstance.testamentDetailsOf(testatorAddress);
+    let cryptoTestament = await CryptoTestament.at(testamentInfo.testamentAddress);
+    let errorRaised = false;
+    try {
+     await cryptoTestament.updateDetails(beneficiaryAddress, 30 * 24 * 3600, "encryptedKey", "encryptedInfo", { from: randomAddress });
+    } catch (err) {
+      assert.equal(err.reason, 'Cannot update testament: sender is not the testator.', 'Check error reason.');
+      errorRaised = true;
+    }
+    assert.equal(errorRaised, true, 'Assert failure.');
+  });
+  
+  it('Update testament', async function () {
+    let oldTestamentInfo = await serviceInstance.testamentDetailsOf(testatorAddress);
+    let cryptoTestament = await CryptoTestament.at(oldTestamentInfo.testamentAddress);
+    let oldProofOfLifeTimestamp = web3.utils.toBN(oldTestamentInfo.lastProofOfLifeTimestamp);
+
+    await sleep(1000);
+    await serviceInstance.setupTestament(beneficiaryAddress, 60 * 24 * 3600, "encryptedKey2", "encryptedInfo2", { from: testatorAddress });
+    let newTestamentInfo = await serviceInstance.testamentDetailsOf(testatorAddress);
+    let newProofOfLifeTimestamp = web3.utils.toBN(newTestamentInfo.lastProofOfLifeTimestamp);
+
+    assert.equal(newTestamentInfo.creationTimestamp, oldTestamentInfo.creationTimestamp, 'Check creation timestamp.');
+    assert.equal(newTestamentInfo.testatorAddress, testatorAddress, 'Check testator address.');
+    assert.equal(newTestamentInfo.testamentBalance, '0', 'Check testament balance.');
+    assert.equal(newTestamentInfo.beneficiaryAddress, beneficiaryAddress, 'Check beneficiary address.');
+    assert.equal(newTestamentInfo.proofOfLifeThreshold, 60 * 24 * 3600, 'Check proof of life threshold.');
+    assert(newProofOfLifeTimestamp.gt(oldProofOfLifeTimestamp), 'Check last proof of life timestamp.');
+    assert.equal(newTestamentInfo.encryptedKey, 'encryptedKey2', 'Check encrypted key.');
+    assert.equal(newTestamentInfo.encryptedInfo, 'encryptedInfo2', 'Check encrypted information.');
+    assert.equal(newTestamentInfo.executionTimestamp, '0', 'Check execution timestamp.');
+    assert.equal(newTestamentInfo.executionBalance, '0', 'Check execution balance.');
+    assert.equal(newTestamentInfo.status, '0', 'Check status.');
+    assert.equal(newTestamentInfo.exists, true, 'Check existence flag.');
+
+    oldTestamentInfo = newTestamentInfo;
+    newProofOfLifeTimestamp = oldProofOfLifeTimestamp;
+    await sleep(1000);
+    await cryptoTestament.updateDetails(beneficiaryAddress, 30 * 24 * 3600, "encryptedKey3", "encryptedInfo3", { from: testatorAddress })
+
+    newTestamentInfo = await serviceInstance.testamentDetailsOf(testatorAddress);
+    newProofOfLifeTimestamp = web3.utils.toBN(newTestamentInfo.lastProofOfLifeTimestamp);
+
+    assert.equal(newTestamentInfo.creationTimestamp, oldTestamentInfo.creationTimestamp, 'Check creation timestamp.');
+    assert.equal(newTestamentInfo.testatorAddress, testatorAddress, 'Check testator address.');
+    assert.equal(newTestamentInfo.testamentBalance, '0', 'Check testament balance.');
+    assert.equal(newTestamentInfo.beneficiaryAddress, beneficiaryAddress, 'Check beneficiary address.');
+    assert.equal(newTestamentInfo.proofOfLifeThreshold, 30 * 24 * 3600, 'Check proof of life threshold.');
+    assert(newProofOfLifeTimestamp.gt(oldProofOfLifeTimestamp), 'Check last proof of life timestamp.');
+    assert.equal(newTestamentInfo.encryptedKey, 'encryptedKey3', 'Check encrypted key.');
+    assert.equal(newTestamentInfo.encryptedInfo, 'encryptedInfo3', 'Check encrypted information.');
+    assert.equal(newTestamentInfo.executionTimestamp, '0', 'Check execution timestamp.');
+    assert.equal(newTestamentInfo.executionBalance, '0', 'Check execution balance.');
+    assert.equal(newTestamentInfo.status, '0', 'Check status.');
+    assert.equal(newTestamentInfo.exists, true, 'Check existence flag.');
   });
 
   it('Try and fail to fund a testament using a non-testator address', async function () {
@@ -115,16 +231,16 @@ contract('CryptoTestament', function (accounts) {
 
   it('Fund a testament using the testator address', async function () {
     let oldTestamentInfo = await serviceInstance.testamentDetailsOf(testatorAddress);
-    let oldProofOfLife = web3.utils.toBN(oldTestamentInfo.lastProofOfLifeTimestamp);
+    let oldProofOfLifeTimestamp = web3.utils.toBN(oldTestamentInfo.lastProofOfLifeTimestamp);
 
     await sleep(1000);
     await web3.eth.sendTransaction({ from: testatorAddress, to: oldTestamentInfo.testamentAddress, value: web3.utils.toWei('0.01', 'ether') });
     let newTestamentInfo = await serviceInstance.testamentDetailsOf(testatorAddress);
-    let newProofOfLife = web3.utils.toBN(newTestamentInfo.lastProofOfLifeTimestamp);
+    let newProofOfLifeTimestamp = web3.utils.toBN(newTestamentInfo.lastProofOfLifeTimestamp);
     let contractBalance = await serviceInstance.contractBalance();
 
     assert.equal(newTestamentInfo.testamentBalance, web3.utils.toWei('0.009975', 'ether').toString(), 'Check testament balance.');
-    assert(newProofOfLife.gt(oldProofOfLife), 'Check new proof of life.');
+    assert(newProofOfLifeTimestamp.gt(oldProofOfLifeTimestamp), 'Check new proof of life timestamp.');
     assert.equal(contractBalance.toString(), web3.utils.toWei('0.000025', 'ether').toString(), 'Check service fee balance.');
   });
 
@@ -157,17 +273,6 @@ contract('CryptoTestament', function (accounts) {
     assert.equal(newContractBalance.toString(), '0', 'Check service fee balance.');
   });
 
-  it('Try and fail to withdraw funds from non-existing testament', async function () {
-    let errorRaised = false;
-    try {
-      await serviceInstance.withdrawTestamentFunds(web3.utils.toWei('0.01', 'ether'), { from: randomAddress });
-    } catch (err) {
-      assert.equal(err.reason, 'Cannot withdraw testament funds: testament not found.', 'Check error reason.');
-      errorRaised = true;
-    }
-    assert.equal(errorRaised, true, 'Assert failure.');
-  });
-
   it('Try and fail to withdraw testament funds from a non-testator address', async function () {
     let errorRaised = false;
     let testamentInfo = await serviceInstance.testamentDetailsOf(testatorAddress);
@@ -192,14 +297,13 @@ contract('CryptoTestament', function (accounts) {
     assert.equal(errorRaised, true, 'Assert failure.');
   });
 
-
   it('Withdraw testament funds', async function () {
     let amount = web3.utils.toWei('0.005', 'ether');
     let oldTestamentInfo = await serviceInstance.testamentDetailsOf(testatorAddress);
     let cryptoTestament = await CryptoTestament.at(oldTestamentInfo.testamentAddress);
     assert.equal(oldTestamentInfo.testamentBalance, web3.utils.toWei('0.009975', 'ether').toString());
 
-    let oldProofOfLife = web3.utils.toBN(oldTestamentInfo.lastProofOfLifeTimestamp);
+    let oldProofOfLifeTimestamp = web3.utils.toBN(oldTestamentInfo.lastProofOfLifeTimestamp);
     let oldTestatorBalance = web3.utils.toBN(await web3.eth.getBalance(testatorAddress));
     let txnReceipt = await serviceInstance.withdrawTestamentFunds(amount, { from: testatorAddress });
     let txn = await web3.eth.getTransaction(txnReceipt.tx);
@@ -214,13 +318,14 @@ contract('CryptoTestament', function (accounts) {
     let newTestamentInfo = await serviceInstance.testamentDetailsOf(testatorAddress);
     assert.equal(newTestamentInfo.testamentBalance, web3.utils.toWei('0.004975', 'ether').toString(), 'Check new testament balance.');
 
-    let newProofOfLife = web3.utils.toBN(newTestamentInfo.lastProofOfLifeTimestamp);
-    assert(newProofOfLife.gt(oldProofOfLife), 'Check new proof of life.');
+    let newProofOfLifeTimestamp = web3.utils.toBN(newTestamentInfo.lastProofOfLifeTimestamp);
+    assert(newProofOfLifeTimestamp.gt(oldProofOfLifeTimestamp), 'Check new proof of life timestamp.');
 
-    oldProofOfLife = newProofOfLife;
+    oldProofOfLifeTimestamp = newProofOfLifeTimestamp;
     amount = web3.utils.toWei('0.004975', 'ether');
     oldTestatorBalance = currentTestatorBalance;
 
+    await sleep(1000);
     txnReceipt = await cryptoTestament.withdrawFunds(amount, { from: testatorAddress });
     txn = await web3.eth.getTransaction(txnReceipt.tx);
     gasUsed = web3.utils.toBN(txnReceipt.receipt.gasUsed);
@@ -233,75 +338,167 @@ contract('CryptoTestament', function (accounts) {
 
     newTestamentInfo = await serviceInstance.testamentDetailsOf(testatorAddress);
     assert.equal(newTestamentInfo.testamentBalance, '0', 'Check new testament balance.');
-    newProofOfLife = web3.utils.toBN(newTestamentInfo.lastProofOfLifeTimestamp);
-    assert(newProofOfLife.gt(oldProofOfLife), 'Check new proof of life.');
+    newProofOfLifeTimestamp = web3.utils.toBN(newTestamentInfo.lastProofOfLifeTimestamp);
+    assert(newProofOfLifeTimestamp.gt(oldProofOfLifeTimestamp), 'Check new proof of life timestamp.');
+  });
+
+  it('Try and fail to cancel testament using a non-testator address', async function () {
+    let testamentInfo = await serviceInstance.testamentDetailsOf(testatorAddress);
+    let cryptoTestament = await CryptoTestament.at(testamentInfo.testamentAddress);
+
+    let errorRaised = false;
+    try {
+      await cryptoTestament.cancelTestament({from: randomAddress});
+    } catch (err) {
+      assert.equal(err.reason, 'Cannot cancel testament: sender is not the testator.');
+      errorRaised = true;
+    }
+    assert.equal(errorRaised, true, 'Assert failure.');
+  });
+
+  it('Try and fail to reactivate testament using a non-testator address', async function () {
+    let errorRaised = false;
+    let testamentInfo = await serviceInstance.testamentDetailsOf(testatorAddress);
+    let cryptoTestament = await CryptoTestament.at(testamentInfo.testamentAddress);
+    try {
+      await cryptoTestament.reactivateTestament({ from: randomAddress });
+    } catch (err) {
+      assert.equal(err.reason, 'Cannot reactivate testament: sender is not the testator.', 'Check error reason.');
+      errorRaised = true;
+    }
+    assert.equal(errorRaised, true, 'Assert failure.');
+  });
+
+  it('Try and fail to reactivate a locked testament', async function() {
+    let errorRaised = false;
+    try {
+     await serviceInstance.reactivateTestament({from: testatorAddress});
+    } catch (err) {
+      assert.equal(err.reason, 'Cannot reactivate testament: testament is not CANCELLED.', 'Check error reason.');
+      errorRaised = true;
+    }
+    assert.equal(errorRaised, true, 'Assert failure.');
+  });
+
+  it('Try and fail to execute a locked testament', async function() {
+    let errorRaised = false;
+    try {
+     await serviceInstance.executeTestamentOf(testatorAddress);
+    } catch (err) {
+      assert.equal(err.reason, 'Cannot execute testament: last proof of life is still active.', 'Check error reason.');
+      errorRaised = true;
+    }
+    assert.equal(errorRaised, true, 'Assert failure.');
+  });
+
+  it('Cancel a testament', async function () {
+    await serviceInstance.cancelTestament({ from: testatorAddress });
+    let testamentInfo = await serviceInstance.testamentDetailsOf(testatorAddress);
+    assert.equal(testamentInfo.status, '1', 'Check new status.');
+  });
+
+  it('Try and fail to cancel a cancelled testament', async function() {
+    let errorRaised = false;
+    let testamentInfo = await serviceInstance.testamentDetailsOf(testatorAddress);
+    let cryptoTestament = await CryptoTestament.at(testamentInfo.testamentAddress);
+    try {
+      await cryptoTestament.cancelTestament({from: testatorAddress});
+    } catch (err) {
+      assert.equal(err.reason, 'Cannot cancel testament: testament is not LOCKED.', 'Check error reason.');
+      errorRaised = true;
+    }
+    assert.equal(errorRaised, true, 'Assert failure.');
+  });
+
+  it('Try and fail to fund a cancelled testament', async function() {
+    let errorRaised = false;
+    let testamentInfo = await serviceInstance.testamentDetailsOf(testatorAddress);
+    try {
+      await web3.eth.sendTransaction({ from: testatorAddress, to: testamentInfo.testamentAddress, value: web3.utils.toWei('0.01', 'ether') });
+    } catch (errObj) {
+      let errKey = Object.keys(errObj.data)[0];
+      let err = errObj.data[errKey];
+      assert.equal(err.reason, 'Cannot deposit funds: testament is not LOCKED.', 'Check error reason.');
+      errorRaised = true;
+    }
+    assert.equal(errorRaised, true, 'Assert failure.');
+  });
+
+  it('Try and fail to execute a cancelled testament', async function() {
+    let errorRaised = false;
+    try {
+     await serviceInstance.executeTestamentOf(testatorAddress);
+    } catch (err) {
+      assert.equal(err.reason, 'Cannot execute testament: testament is not LOCKED.', 'Check error reason.');
+      errorRaised = true;
+    }
+    assert.equal(errorRaised, true, 'Assert failure.');
+  });
+
+  it('Try and fail to update a cancelled testament', async function() {
+    let testamentInfo = await serviceInstance.testamentDetailsOf(testatorAddress);
+    let cryptoTestament = await CryptoTestament.at(testamentInfo.testamentAddress);
+    let errorRaised = false;
+    try {
+     await cryptoTestament.updateDetails(beneficiaryAddress, 30 * 24 * 3600, "encryptedKey", "encryptedInfo", { from: testatorAddress });
+    } catch (err) {
+      assert.equal(err.reason, 'Cannot update testament: testament is not LOCKED.', 'Check error reason.');
+      errorRaised = true;
+    }
+    assert.equal(errorRaised, true, 'Assert failure.');
+  });
+
+  it('Withdraw funds from a cancelled testament', async function () {
+    let amount = web3.utils.toWei('0.00', 'ether');
+    let oldTestamentInfo = await serviceInstance.testamentDetailsOf(testatorAddress);
+    assert.equal(oldTestamentInfo.testamentBalance, web3.utils.toWei('0.00', 'ether').toString());
+
+    let oldProofOfLifeTimestamp = web3.utils.toBN(oldTestamentInfo.lastProofOfLifeTimestamp);
+    let oldTestatorBalance = web3.utils.toBN(await web3.eth.getBalance(testatorAddress));
+    let txnReceipt = await serviceInstance.withdrawTestamentFunds(amount, { from: testatorAddress });
+    let txn = await web3.eth.getTransaction(txnReceipt.tx);
+    let gasUsed = web3.utils.toBN(txnReceipt.receipt.gasUsed);
+    let transactionCost = gasUsed.mul(web3.utils.toBN(txn.gasPrice));
+
+    let expectedNewTestatorBalance = oldTestatorBalance.add(web3.utils.toBN(amount)).sub(transactionCost);
+    let currentTestatorBalance = web3.utils.toBN(await web3.eth.getBalance(testatorAddress));
+
+    assert.equal(expectedNewTestatorBalance.toString(), currentTestatorBalance.toString(), 'Check new account balance.')
+
+    let newTestamentInfo = await serviceInstance.testamentDetailsOf(testatorAddress);
+    assert.equal(newTestamentInfo.testamentBalance, web3.utils.toWei('0.00', 'ether').toString(), 'Check new testament balance.');
+
+    let newProofOfLifeTimestamp = web3.utils.toBN(newTestamentInfo.lastProofOfLifeTimestamp);
+    assert.equal(newProofOfLifeTimestamp.toString(), oldProofOfLifeTimestamp.toString(), 'Check proof of life.');
+  });
+
+  it('Reactivate a testament', async function () {
+    let oldTestamentInfo = await serviceInstance.testamentDetailsOf(testatorAddress);
+    let oldProofOfLifeTimestamp = web3.utils.toBN(oldTestamentInfo.lastProofOfLifeTimestamp);
+    await sleep(1000);
+    await serviceInstance.reactivateTestament({ from: testatorAddress });
+    let newTestamentInfo = await serviceInstance.testamentDetailsOf(testatorAddress);
+    let newProofOfLifeTimestamp = web3.utils.toBN(newTestamentInfo.lastProofOfLifeTimestamp);
+
+    assert.equal(newTestamentInfo.status, '0', 'Check new status.');
+    assert(newProofOfLifeTimestamp.gt(oldProofOfLifeTimestamp), 'Check last proof of life timestamp.');
+
+    oldTestamentInfo.status = newTestamentInfo.status;
+    oldTestamentInfo.lastProofOfLifeTimestamp = newTestamentInfo.lastProofOfLifeTimestamp;
+    assert.equal(_.isEqual(oldTestamentInfo, newTestamentInfo), true, 'Check testament info.');
 
   });
 
-  // it('Try and fail to cancel non-existing testament', async function() {
-  //   let errorRaised = false;
-  //   try {
-  //     await serviceInstance.cancelTestament({from: randomAddress});
-  //   } catch (err) {
-  //     assert.equal(err.reason, 'Cannot cancel testament: testament not found.', 'Check error reason.');
-  //     errorRaised = true;
-  //   }
-  //   assert.equal(errorRaised, true, 'Assert failure.');
-  // });
-
-  // it('Try and fail to reactivate non-existing testament', async function() {
-  //   let errorRaised = false;
-  //   try {
-  //     await serviceInstance.reactivateTestament({from: randomAddress});
-  //   } catch (err) {
-  //     assert.equal(err.reason, 'Cannot reactivate testament: testament not found.', 'Check error reason.');
-  //     errorRaised = true;
-  //   }
-  //   assert.equal(errorRaised, true, 'Assert failure.');
-  // });
-
-  // it('Try and fail to withdraw funds from non-existing testament', async function() {
-  //   let errorRaised = false;
-  //   try {
-  //     await serviceInstance.withdrawTestamentFunds(0, {from: randomAddress});
-  //   } catch (err) {
-  //     assert.equal(err.reason, 'Cannot withdraw testament funds: testament not found.', 'Check error reason.');
-  //     errorRaised = true;
-  //   }
-  //   assert.equal(errorRaised, true, 'Assert failure.');
-  // });
-
-  // it('Try and fail to execute non-existing testament', async function() {
-  //   let errorRaised = false;
-  //   try {
-  //     await serviceInstance.executeTestamentOf(randomAddress, {from: randomAddress});
-  //   } catch (err) {
-  //     assert.equal(err.reason, 'Cannot execute testament: testament not found.', 'Check error reason.');
-  //     errorRaised = true;
-  //   }
-  //   assert.equal(errorRaised, true, 'Assert failure.');
-  // });
-
-
-  // Cancel locked testament
-
-  // Cancel cancelled testament
 
   // Cancel unlocked testament
 
   // Cancel executed testament
-
-  // Reactivate locked testament
 
   // Reacrivate cancelled testament
 
   // Reacrtivate unlocked testament
 
   // Reacrivate exwcuted testament
-
-  // Execute locked testament
-
-  // Execute cancelled testament
 
   // Execute unlocked testament
 
