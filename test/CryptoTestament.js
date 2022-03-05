@@ -482,11 +482,6 @@ contract('CryptoTestament', function (accounts) {
 
     assert.equal(newTestamentInfo.status, '0', 'Check new status.');
     assert(newProofOfLifeTimestamp.gt(oldProofOfLifeTimestamp), 'Check last proof of life timestamp.');
-
-    oldTestamentInfo.status = newTestamentInfo.status;
-    oldTestamentInfo.lastProofOfLifeTimestamp = newTestamentInfo.lastProofOfLifeTimestamp;
-    assert.equal(_.isEqual(oldTestamentInfo, newTestamentInfo), true, 'Check testament info.');
-
   });
 
 
