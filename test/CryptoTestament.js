@@ -7,6 +7,20 @@ const sleep = (milliseconds) => {
   return new Promise(resolve => setTimeout(resolve, milliseconds))
 }
 
+const advanceTime = (time) => {
+  return new Promise((resolve, reject) => {
+    web3.currentProvider.send({
+      jsonrpc: '2.0',
+      method: 'evm_increaseTime',
+      params: [time],
+      id: new Date().getTime()
+    }, (err, result) => {
+      if (err) { return reject(err) }
+      return resolve(result)
+    })
+  })
+}
+
 contract('CryptoTestament', function (accounts) {
   let serviceInstance;
   let serviceOwnerAddress = accounts[0];
@@ -37,6 +51,17 @@ contract('CryptoTestament', function (accounts) {
     assert.equal(errorRaised, true, 'Assert failure.');
   });
 
+  it('Try and fail to withdraw service fees using non-owner account', async function () {
+    let errorRaised = false;
+    try {
+      await serviceInstance.withdrawServiceFees({ from: randomAddress });
+    } catch (err) {
+      assert.equal(err.reason, 'Cannot withdraw service fees: sender is not the service owner.', 'Check error reason.');
+      errorRaised = true;
+    }
+    assert.equal(errorRaised, true, 'Assert failure.');
+  });
+
   it('Change service fee rate using owner account', async function () {
     await serviceInstance.setServiceFeeRate(50, { from: serviceOwnerAddress });
     let serviceFeeRate = await serviceInstance.serviceFeeRate();
@@ -55,21 +80,21 @@ contract('CryptoTestament', function (accounts) {
     assert.equal(false, nonExistingTestament.exists, 'Check non-existing testament info.');
   });
 
-  it('Try and fail to cancel non-existing testament', async function() {
+  it('Try and fail to cancel a non-existing testament', async function () {
     let errorRaised = false;
     try {
-      await serviceInstance.cancelTestament({from: randomAddress});
+      await serviceInstance.cancelTestament({ from: randomAddress });
     } catch (err) {
       assert.equal(err.reason, 'Cannot cancel testament: testament not found.', 'Check error reason.');
       errorRaised = true;
     }
     assert.equal(errorRaised, true, 'Assert failure.');
   });
-  
-  it('Try and fail to reactivate non-existing testament', async function() {
+
+  it('Try and fail to reactivate a non-existing testament', async function () {
     let errorRaised = false;
     try {
-      await serviceInstance.reactivateTestament({from: randomAddress});
+      await serviceInstance.reactivateTestament({ from: randomAddress });
     } catch (err) {
       assert.equal(err.reason, 'Cannot reactivate testament: testament not found.', 'Check error reason.');
       errorRaised = true;
@@ -77,10 +102,10 @@ contract('CryptoTestament', function (accounts) {
     assert.equal(errorRaised, true, 'Assert failure.');
   });
 
-  it('Try and fail to execute non-existing testament', async function() {
+  it('Try and fail to execute a non-existing testament', async function () {
     let errorRaised = false;
     try {
-      await serviceInstance.executeTestamentOf(randomAddress, {from: randomAddress});
+      await serviceInstance.executeTestamentOf(randomAddress, { from: randomAddress });
     } catch (err) {
       assert.equal(err.reason, 'Cannot execute testament: testament not found.', 'Check error reason.');
       errorRaised = true;
@@ -88,7 +113,7 @@ contract('CryptoTestament', function (accounts) {
     assert.equal(errorRaised, true, 'Assert failure.');
   });
 
-  it('Try and fail to withdraw funds from non-existing testament', async function () {
+  it('Try and fail to withdraw funds from a non-existing testament', async function () {
     let errorRaised = false;
     try {
       await serviceInstance.withdrawTestamentFunds(web3.utils.toWei('0.01', 'ether'), { from: randomAddress });
@@ -98,7 +123,7 @@ contract('CryptoTestament', function (accounts) {
     }
     assert.equal(errorRaised, true, 'Assert failure.');
   });
-  
+
   it('Try and fail to create new testament - Invalid proof of life threshold', async function () {
     let errorRaised = false;
     try {
@@ -154,22 +179,75 @@ contract('CryptoTestament', function (accounts) {
     assert.equal(testamentInfo.executionBalance, '0', 'Check execution balance.');
     assert.equal(testamentInfo.status, '0', 'Check status.');
     assert.equal(testamentInfo.exists, true, 'Check existence flag.');
-
   });
 
-  it('Try and fail to update a testament using a non-testator address', async function() {
+  it('Try and fail to update a testament using a non-testator address', async function () {
     let testamentInfo = await serviceInstance.testamentDetailsOf(testatorAddress);
     let cryptoTestament = await CryptoTestament.at(testamentInfo.testamentAddress);
     let errorRaised = false;
     try {
-     await cryptoTestament.updateDetails(beneficiaryAddress, 30 * 24 * 3600, "encryptedKey", "encryptedInfo", { from: randomAddress });
+      await cryptoTestament.updateDetails(beneficiaryAddress, 30 * 24 * 3600, "encryptedKey", "encryptedInfo", { from: randomAddress });
     } catch (err) {
       assert.equal(err.reason, 'Cannot update testament: sender is not the testator.', 'Check error reason.');
       errorRaised = true;
     }
     assert.equal(errorRaised, true, 'Assert failure.');
   });
-  
+
+  it('Try and fail to cancel testament using a non-testator address', async function () {
+    let testamentInfo = await serviceInstance.testamentDetailsOf(testatorAddress);
+    let cryptoTestament = await CryptoTestament.at(testamentInfo.testamentAddress);
+
+    let errorRaised = false;
+    try {
+      await cryptoTestament.cancelTestament({ from: randomAddress });
+    } catch (err) {
+      assert.equal(err.reason, 'Cannot cancel testament: sender is not the testator.');
+      errorRaised = true;
+    }
+    assert.equal(errorRaised, true, 'Assert failure.');
+  });
+
+  it('Try and fail to reactivate testament using a non-testator address', async function () {
+    let errorRaised = false;
+    let testamentInfo = await serviceInstance.testamentDetailsOf(testatorAddress);
+    let cryptoTestament = await CryptoTestament.at(testamentInfo.testamentAddress);
+    try {
+      await cryptoTestament.reactivateTestament({ from: randomAddress });
+    } catch (err) {
+      assert.equal(err.reason, 'Cannot reactivate testament: sender is not the testator.', 'Check error reason.');
+      errorRaised = true;
+    }
+    assert.equal(errorRaised, true, 'Assert failure.');
+  });
+
+  it('Try and fail to fund a testament using a non-testator address', async function () {
+    let errorRaised = false;
+    let testamentInfo = await serviceInstance.testamentDetailsOf(testatorAddress);
+    try {
+      await web3.eth.sendTransaction({ from: randomAddress, to: testamentInfo.testamentAddress, value: web3.utils.toWei('0.001', 'ether') });
+    } catch (errObj) {
+      let errKey = Object.keys(errObj.data)[0];
+      let err = errObj.data[errKey];
+      assert.equal(err.reason, 'Cannot deposit funds: sender is not the testator.', 'Check error reason.');
+      errorRaised = true;
+    }
+    assert.equal(errorRaised, true, 'Assert failure.');
+  });
+
+  it('Try and fail to withdraw testament funds from a non-testator address', async function () {
+    let errorRaised = false;
+    let testamentInfo = await serviceInstance.testamentDetailsOf(testatorAddress);
+    let cryptoTestament = await CryptoTestament.at(testamentInfo.testamentAddress);
+    try {
+      await cryptoTestament.withdrawFunds(web3.utils.toWei('0.01', 'ether'), { from: randomAddress });
+    } catch (err) {
+      assert.equal(err.reason, 'Cannot withdraw testament funds: sender is not the testator.', 'Check error reason.');
+      errorRaised = true;
+    }
+    assert.equal(errorRaised, true, 'Assert failure.');
+  });
+
   it('Update testament', async function () {
     let oldTestamentInfo = await serviceInstance.testamentDetailsOf(testatorAddress);
     let cryptoTestament = await CryptoTestament.at(oldTestamentInfo.testamentAddress);
@@ -215,20 +293,6 @@ contract('CryptoTestament', function (accounts) {
     assert.equal(newTestamentInfo.exists, true, 'Check existence flag.');
   });
 
-  it('Try and fail to fund a testament using a non-testator address', async function () {
-    let errorRaised = false;
-    let testamentInfo = await serviceInstance.testamentDetailsOf(testatorAddress);
-    try {
-      await web3.eth.sendTransaction({ from: randomAddress, to: testamentInfo.testamentAddress, value: web3.utils.toWei('0.001', 'ether') });
-    } catch (errObj) {
-      let errKey = Object.keys(errObj.data)[0];
-      let err = errObj.data[errKey];
-      assert.equal(err.reason, 'Cannot deposit funds: sender is not the testator.', 'Check error reason.');
-      errorRaised = true;
-    }
-    assert.equal(errorRaised, true, 'Assert failure.');
-  });
-
   it('Fund a testament using the testator address', async function () {
     let oldTestamentInfo = await serviceInstance.testamentDetailsOf(testatorAddress);
     let oldProofOfLifeTimestamp = web3.utils.toBN(oldTestamentInfo.lastProofOfLifeTimestamp);
@@ -242,17 +306,6 @@ contract('CryptoTestament', function (accounts) {
     assert.equal(newTestamentInfo.testamentBalance, web3.utils.toWei('0.009975', 'ether').toString(), 'Check testament balance.');
     assert(newProofOfLifeTimestamp.gt(oldProofOfLifeTimestamp), 'Check new proof of life timestamp.');
     assert.equal(contractBalance.toString(), web3.utils.toWei('0.000025', 'ether').toString(), 'Check service fee balance.');
-  });
-
-  it('Try and fail to withdraw service fees using non-owner account', async function () {
-    let errorRaised = false;
-    try {
-      await serviceInstance.withdrawServiceFees({ from: randomAddress });
-    } catch (err) {
-      assert.equal(err.reason, 'Cannot withdraw service fees: sender is not the service owner.', 'Check error reason.');
-      errorRaised = true;
-    }
-    assert.equal(errorRaised, true, 'Assert failure.');
   });
 
   it('Withdraw service fees', async function () {
@@ -271,19 +324,6 @@ contract('CryptoTestament', function (accounts) {
 
     let newContractBalance = await serviceInstance.contractBalance();
     assert.equal(newContractBalance.toString(), '0', 'Check service fee balance.');
-  });
-
-  it('Try and fail to withdraw testament funds from a non-testator address', async function () {
-    let errorRaised = false;
-    let testamentInfo = await serviceInstance.testamentDetailsOf(testatorAddress);
-    let cryptoTestament = await CryptoTestament.at(testamentInfo.testamentAddress);
-    try {
-      await cryptoTestament.withdrawFunds(web3.utils.toWei('0.01', 'ether'), { from: randomAddress });
-    } catch (err) {
-      assert.equal(err.reason, 'Cannot withdraw testament funds: sender is not the testator.', 'Check error reason.');
-      errorRaised = true;
-    }
-    assert.equal(errorRaised, true, 'Assert failure.');
   });
 
   it('Try and fail to withdraw more funds than available in a testament', async function () {
@@ -322,7 +362,7 @@ contract('CryptoTestament', function (accounts) {
     assert(newProofOfLifeTimestamp.gt(oldProofOfLifeTimestamp), 'Check new proof of life timestamp.');
 
     oldProofOfLifeTimestamp = newProofOfLifeTimestamp;
-    amount = web3.utils.toWei('0.004975', 'ether');
+    amount = web3.utils.toWei('0.003975', 'ether');
     oldTestatorBalance = currentTestatorBalance;
 
     await sleep(1000);
@@ -337,42 +377,15 @@ contract('CryptoTestament', function (accounts) {
     assert.equal(expectedNewTestatorBalance.toString(), currentTestatorBalance.toString(), 'Check new account balance.')
 
     newTestamentInfo = await serviceInstance.testamentDetailsOf(testatorAddress);
-    assert.equal(newTestamentInfo.testamentBalance, '0', 'Check new testament balance.');
+    assert.equal(newTestamentInfo.testamentBalance, web3.utils.toWei('0.001', 'ether').toString(), 'Check new testament balance.');
     newProofOfLifeTimestamp = web3.utils.toBN(newTestamentInfo.lastProofOfLifeTimestamp);
     assert(newProofOfLifeTimestamp.gt(oldProofOfLifeTimestamp), 'Check new proof of life timestamp.');
   });
 
-  it('Try and fail to cancel testament using a non-testator address', async function () {
-    let testamentInfo = await serviceInstance.testamentDetailsOf(testatorAddress);
-    let cryptoTestament = await CryptoTestament.at(testamentInfo.testamentAddress);
-
+  it('Try and fail to reactivate a locked testament', async function () {
     let errorRaised = false;
     try {
-      await cryptoTestament.cancelTestament({from: randomAddress});
-    } catch (err) {
-      assert.equal(err.reason, 'Cannot cancel testament: sender is not the testator.');
-      errorRaised = true;
-    }
-    assert.equal(errorRaised, true, 'Assert failure.');
-  });
-
-  it('Try and fail to reactivate testament using a non-testator address', async function () {
-    let errorRaised = false;
-    let testamentInfo = await serviceInstance.testamentDetailsOf(testatorAddress);
-    let cryptoTestament = await CryptoTestament.at(testamentInfo.testamentAddress);
-    try {
-      await cryptoTestament.reactivateTestament({ from: randomAddress });
-    } catch (err) {
-      assert.equal(err.reason, 'Cannot reactivate testament: sender is not the testator.', 'Check error reason.');
-      errorRaised = true;
-    }
-    assert.equal(errorRaised, true, 'Assert failure.');
-  });
-
-  it('Try and fail to reactivate a locked testament', async function() {
-    let errorRaised = false;
-    try {
-     await serviceInstance.reactivateTestament({from: testatorAddress});
+      await serviceInstance.reactivateTestament({ from: testatorAddress });
     } catch (err) {
       assert.equal(err.reason, 'Cannot reactivate testament: testament is not CANCELLED.', 'Check error reason.');
       errorRaised = true;
@@ -380,10 +393,10 @@ contract('CryptoTestament', function (accounts) {
     assert.equal(errorRaised, true, 'Assert failure.');
   });
 
-  it('Try and fail to execute a locked testament', async function() {
+  it('Try and fail to execute a locked testament', async function () {
     let errorRaised = false;
     try {
-     await serviceInstance.executeTestamentOf(testatorAddress);
+      await serviceInstance.executeTestamentOf(testatorAddress);
     } catch (err) {
       assert.equal(err.reason, 'Cannot execute testament: last proof of life is still active.', 'Check error reason.');
       errorRaised = true;
@@ -397,12 +410,25 @@ contract('CryptoTestament', function (accounts) {
     assert.equal(testamentInfo.status, '1', 'Check new status.');
   });
 
-  it('Try and fail to cancel a cancelled testament', async function() {
+  it('Try and fail to update a cancelled testament', async function () {
+    let testamentInfo = await serviceInstance.testamentDetailsOf(testatorAddress);
+    let cryptoTestament = await CryptoTestament.at(testamentInfo.testamentAddress);
+    let errorRaised = false;
+    try {
+      await cryptoTestament.updateDetails(beneficiaryAddress, 30 * 24 * 3600, "encryptedKey", "encryptedInfo", { from: testatorAddress });
+    } catch (err) {
+      assert.equal(err.reason, 'Cannot update testament: testament is not LOCKED.', 'Check error reason.');
+      errorRaised = true;
+    }
+    assert.equal(errorRaised, true, 'Assert failure.');
+  });
+
+  it('Try and fail to cancel a cancelled testament', async function () {
     let errorRaised = false;
     let testamentInfo = await serviceInstance.testamentDetailsOf(testatorAddress);
     let cryptoTestament = await CryptoTestament.at(testamentInfo.testamentAddress);
     try {
-      await cryptoTestament.cancelTestament({from: testatorAddress});
+      await cryptoTestament.cancelTestament({ from: testatorAddress });
     } catch (err) {
       assert.equal(err.reason, 'Cannot cancel testament: testament is not LOCKED.', 'Check error reason.');
       errorRaised = true;
@@ -410,7 +436,7 @@ contract('CryptoTestament', function (accounts) {
     assert.equal(errorRaised, true, 'Assert failure.');
   });
 
-  it('Try and fail to fund a cancelled testament', async function() {
+  it('Try and fail to fund a cancelled testament', async function () {
     let errorRaised = false;
     let testamentInfo = await serviceInstance.testamentDetailsOf(testatorAddress);
     try {
@@ -424,10 +450,10 @@ contract('CryptoTestament', function (accounts) {
     assert.equal(errorRaised, true, 'Assert failure.');
   });
 
-  it('Try and fail to execute a cancelled testament', async function() {
+  it('Try and fail to execute a cancelled testament', async function () {
     let errorRaised = false;
     try {
-     await serviceInstance.executeTestamentOf(testatorAddress);
+      await serviceInstance.executeTestamentOf(testatorAddress);
     } catch (err) {
       assert.equal(err.reason, 'Cannot execute testament: testament is not LOCKED.', 'Check error reason.');
       errorRaised = true;
@@ -435,23 +461,10 @@ contract('CryptoTestament', function (accounts) {
     assert.equal(errorRaised, true, 'Assert failure.');
   });
 
-  it('Try and fail to update a cancelled testament', async function() {
-    let testamentInfo = await serviceInstance.testamentDetailsOf(testatorAddress);
-    let cryptoTestament = await CryptoTestament.at(testamentInfo.testamentAddress);
-    let errorRaised = false;
-    try {
-     await cryptoTestament.updateDetails(beneficiaryAddress, 30 * 24 * 3600, "encryptedKey", "encryptedInfo", { from: testatorAddress });
-    } catch (err) {
-      assert.equal(err.reason, 'Cannot update testament: testament is not LOCKED.', 'Check error reason.');
-      errorRaised = true;
-    }
-    assert.equal(errorRaised, true, 'Assert failure.');
-  });
-
   it('Withdraw funds from a cancelled testament', async function () {
-    let amount = web3.utils.toWei('0.00', 'ether');
+    let amount = web3.utils.toWei('0.001', 'ether');
     let oldTestamentInfo = await serviceInstance.testamentDetailsOf(testatorAddress);
-    assert.equal(oldTestamentInfo.testamentBalance, web3.utils.toWei('0.00', 'ether').toString());
+    assert.equal(oldTestamentInfo.testamentBalance, web3.utils.toWei('0.001', 'ether').toString());
 
     let oldProofOfLifeTimestamp = web3.utils.toBN(oldTestamentInfo.lastProofOfLifeTimestamp);
     let oldTestatorBalance = web3.utils.toBN(await web3.eth.getBalance(testatorAddress));
@@ -484,143 +497,161 @@ contract('CryptoTestament', function (accounts) {
     assert(newProofOfLifeTimestamp.gt(oldProofOfLifeTimestamp), 'Check last proof of life timestamp.');
   });
 
+  it('Try and fail to update an expired testament', async function () {
+    let testamentInfo = await serviceInstance.testamentDetailsOf(testatorAddress);
+    let cryptoTestament = await CryptoTestament.at(testamentInfo.testamentAddress);
+    let errorRaised = false;
+    await advanceTime(31 * 24 * 3600); // 31 days ahead
+    try {
+      await cryptoTestament.updateDetails(beneficiaryAddress, 30 * 24 * 3600, "encryptedKey", "encryptedInfo", { from: testatorAddress });
+    } catch (err) {
+      assert.equal(err.reason, 'Cannot update testament: last proof of life has expired.', 'Check error reason.');
+      errorRaised = true;
+    }
+    assert.equal(errorRaised, true, 'Assert failure.');
+  });
 
-  // Cancel unlocked testament
+  it('Try and fail to cancel an expired testament', async function () {
+    let errorRaised = false;
+    try {
+      await advanceTime(31 * 24 * 3600); // 31 days ahead
+      await serviceInstance.cancelTestament({ from: testatorAddress });
+    } catch (err) {
+      assert.equal(err.reason, 'Cannot cancel testament: last proof of life has expired.');
+      errorRaised = true;
+    }
+    assert.equal(errorRaised, true, 'Assert failure.');
+  });
 
-  // Cancel executed testament
+  it('Try and fail to reactivate an expired testament', async function () {
+    let errorRaised = false;
+    try {
+      await serviceInstance.reactivateTestament({ from: testatorAddress });
+    } catch (err) {
+      assert.equal(err.reason, 'Cannot reactivate testament: testament is not CANCELLED.');
+      errorRaised = true;
+    }
+    assert.equal(errorRaised, true, 'Assert failure.');
+  });
 
-  // Reacrivate cancelled testament
+  it('Try and fail to fund an expired testament', async function () {
+    let errorRaised = false;
+    let testamentInfo = await serviceInstance.testamentDetailsOf(testatorAddress);
+    try {
+      await web3.eth.sendTransaction({ from: testatorAddress, to: testamentInfo.testamentAddress, value: web3.utils.toWei('0.01', 'ether') });
+    } catch (errObj) {
+      let errKey = Object.keys(errObj.data)[0];
+      let err = errObj.data[errKey];
+      assert.equal(err.reason, 'Cannot deposit funds: last proof of life has expired.', 'Check error reason.');
+      errorRaised = true;
+    }
+    assert.equal(errorRaised, true, 'Assert failure.');
+  });
 
-  // Reacrtivate unlocked testament
+  it('Try and fail to withdraw funds from an expired testament', async function () {
+    let errorRaised = false;
+    try {
+      await serviceInstance.withdrawTestamentFunds(web3.utils.toWei('0.00', 'ether'), { from: testatorAddress });
+    } catch (err) {
+      assert.equal(err.reason, 'Cannot withdraw testament funds: last proof of life has expired.', 'Check error reason.');
+      errorRaised = true;
+    }
+    assert.equal(errorRaised, true, 'Assert failure.');
+  });
 
-  // Reacrivate exwcuted testament
+  it('Execute a testament', async function () {
+    let oldTestamentInfo = await serviceInstance.testamentDetailsOf(testatorAddress);
+    let oldExecutionTimestamp = web3.utils.toBN(oldTestamentInfo.executionTimestamp);
+    let oldBeneficiaryBalance = web3.utils.toBN(await web3.eth.getBalance(beneficiaryAddress));
+    let cryptoTestament = await CryptoTestament.at(oldTestamentInfo.testamentAddress);
 
-  // Execute unlocked testament
+    await cryptoTestament.executeTestament({ from: testatorAddress });
+    let newTestamentInfo = await serviceInstance.testamentDetailsOf(testatorAddress);
+    let newExecutionTimestamp = web3.utils.toBN(newTestamentInfo.executionTimestamp);
 
-  // Execute exwcuted testament
+    let expectedNewBeneficiaryBalance = oldBeneficiaryBalance.add(web3.utils.toBN(oldTestamentInfo.testamentBalance));
+    let currentBeneficiaryTestatorBalance = web3.utils.toBN(await web3.eth.getBalance(beneficiaryAddress));
 
+    assert.equal(newTestamentInfo.status, '2', 'Check new status.');
+    assert(newExecutionTimestamp.gt(oldExecutionTimestamp), 'Check execution timestamp.');
+    assert.equal(newTestamentInfo.executionBalance, oldTestamentInfo.testamentBalance, 'Check execution balance.');
+    assert.equal(newTestamentInfo.testamentBalance, '0', 'Check new testament balance.');
+    assert.equal(expectedNewBeneficiaryBalance.toString(), currentBeneficiaryTestatorBalance.toString(), 'Check new beneficiary balance.')
+  });
 
+  it('Try and fail to update an executed testament', async function () {
+    let testamentInfo = await serviceInstance.testamentDetailsOf(testatorAddress);
+    let cryptoTestament = await CryptoTestament.at(testamentInfo.testamentAddress);
+    let errorRaised = false;
+    try {
+      await cryptoTestament.updateDetails(beneficiaryAddress, 30 * 24 * 3600, "encryptedKey", "encryptedInfo", { from: testatorAddress });
+    } catch (err) {
+      assert.equal(err.reason, 'Cannot update testament: testament is not LOCKED.', 'Check error reason.');
+      errorRaised = true;
+    }
+    assert.equal(errorRaised, true, 'Assert failure.');
+  });
 
-  // it('allocates the initial supply upon deployment', function() {
-  //   return LDAppToken.deployed().then(function(instance) {
-  //     tokenInstance = instance;
-  //     return tokenInstance.totalSupply();
-  //   }).then(function(totalSupply) {
-  //     assert.equal(totalSupply.toNumber(), 100000, 'sets the total supply to 100000');
-  //     return tokenInstance.balanceOf(accounts[0]);
-  //   }).then(function(adminBalance) {
-  //     assert.equal(adminBalance.toNumber(), 100000, 'it allocates the initial supply to the admin account');
-  //   });
-  // });
+  it('Try and fail to cancel an executed testament', async function () {
+    let errorRaised = false;
+    try {
+      await advanceTime(31 * 24 * 3600); // 31 days ahead
+      await serviceInstance.cancelTestament({ from: testatorAddress });
+    } catch (err) {
+      assert.equal(err.reason, 'Cannot cancel testament: testament is not LOCKED.');
+      errorRaised = true;
+    }
+    assert.equal(errorRaised, true, 'Assert failure.');
+  });
 
-  // it('transfers token ownership', function() {
-  //   return LDAppToken.deployed().then(function(instance) {
-  //     tokenInstance = instance;
-  //     // Try to transfer more tokens than available in the sender's balance: should error out.
-  //     return tokenInstance.transfer(accounts[1], 100001);
-  //   }).then(assert.fail).catch(function(error) {
-  //     assert(error.message.indexOf('ERC20: transfer amount exceeds balance') >= 0, 'error message must contain ERC20: transfer amount exceeds balance (1)');
-  //     // Try to transfer another 25000 tokens: should work.
-  //     return tokenInstance.transfer(accounts[1], 25000, { from: accounts[0] });
-  //   }).then(function(tx) {
-  //     let receipt = tx.receipt;
-  //     assert.equal(receipt.logs.length, 1, 'triggers one event');
-  //     assert.equal(receipt.logs[0].event, 'Transfer', 'should be the "Transfer" event');
-  //     assert.equal(receipt.logs[0].args._from, accounts[0], 'logs the account the tokens are transferred from');
-  //     assert.equal(receipt.logs[0].args._to, accounts[1], 'logs the account the tokens are transferred to');
-  //     assert.equal(receipt.logs[0].args._value, 25000, 'logs the transfer amount');
-  //     // Check balance of the receiving address: should be 75000 tokens.
-  //     return tokenInstance.balanceOf(accounts[1]);
-  //   }).then(function(balance) {
-  //     assert.equal(balance.toNumber(), 25000, 'adds the amount to the receiving account (1)');
-  //     // Check balance of the sending address: should be 25000 tokens.
-  //     return tokenInstance.balanceOf(accounts[0]);
-  //   }).then(function(balance) {
-  //     assert.equal(balance.toNumber(), 75000, 'deducts the amount from the sending account (2)');
-  //     // Send out the remaining of 25000 tokens: should work.
-  //     return tokenInstance.transfer(accounts[1], 75000, { from: accounts[0] });
-  //   }).then(function(tx) {
-  //       let receipt = tx.receipt;
-  //       assert.equal(receipt.logs.length, 1, 'triggers one event');
-  //       assert.equal(receipt.logs[0].event, 'Transfer', 'should be the "Transfer" event');
-  //       assert.equal(receipt.logs[0].args._from, accounts[0], 'logs the account the tokens are transferred from');
-  //       assert.equal(receipt.logs[0].args._to, accounts[1], 'logs the account the tokens are transferred to');
-  //       assert.equal(receipt.logs[0].args._value, 75000, 'logs the transfer amount');
-  //       // Check balance of the receiving address: should be 100000 tokens.
-  //     return tokenInstance.balanceOf(accounts[1]);
-  //   }).then(function(balance) {
-  //       assert.equal(balance.toNumber(), 100000, 'adds the amount to the receiving account (3)');
-  //     // Check balance of the sending address: no tokens should be left.
-  //     return tokenInstance.balanceOf(accounts[0]);
-  //   }).then(function(balance) {
-  //       assert.equal(balance.toNumber(), 0, 'deducts the amount from the sending account (4)');
-  //       // Try to send tokens even when there are none available: should error out.
-  //       return tokenInstance.transfer(accounts[1], 1);
-  //   }).then(assert.fail).catch(function(error) {
-  //     assert(error.message.indexOf('ERC20: transfer amount exceeds balance') >= 0, 'error message must contain ERC20: transfer amount exceeds balance (2)');
-  //   });
-  // });
+  it('Try and fail to reactivate an executed testament', async function () {
+    let errorRaised = false;
+    try {
+      await serviceInstance.reactivateTestament({ from: testatorAddress });
+    } catch (err) {
+      assert.equal(err.reason, 'Cannot reactivate testament: testament is not CANCELLED.', 'Check error reason.');
+      errorRaised = true;
+    }
+    assert.equal(errorRaised, true, 'Assert failure.');
+  });
 
-  // it('approves tokens for delegated transfer', function() {
-  //   return LDAppToken.deployed().then(function(instance) {
-  //     tokenInstance = instance;
-  //     return tokenInstance.approve.call(accounts[1], 100);
-  //   }).then(function(success) {
-  //     assert.equal(success, true, 'it returns true');
-  //     return tokenInstance.approve(accounts[1], 100, { from: accounts[0] });
-  //   }).then(function(tx) {
-  //     let receipt = tx.receipt;
-  //     assert.equal(receipt.logs.length, 1, 'triggers one event');
-  //     assert.equal(receipt.logs[0].event, 'Approval', 'should be the "Approval" event');
-  //     assert.equal(receipt.logs[0].args._owner, accounts[0], 'logs the account the tokens are authorized by');
-  //     assert.equal(receipt.logs[0].args._spender, accounts[1], 'logs the account the tokens are authorized to');
-  //     assert.equal(receipt.logs[0].args._value, 100, 'logs the transfer amount');
-  //     return tokenInstance.allowance(accounts[0], accounts[1]);
-  //   }).then(function(allowance) {
-  //     assert.equal(allowance.toNumber(), 100, 'stores the allowance for delegated transfer');
-  //   });
-  // });
+  it('Try and fail to fund an executed testament', async function () {
+    let errorRaised = false;
+    let testamentInfo = await serviceInstance.testamentDetailsOf(testatorAddress);
+    try {
+      await web3.eth.sendTransaction({ from: testatorAddress, to: testamentInfo.testamentAddress, value: web3.utils.toWei('0.01', 'ether') });
+    } catch (errObj) {
+      let errKey = Object.keys(errObj.data)[0];
+      let err = errObj.data[errKey];
+      assert.equal(err.reason, 'Cannot deposit funds: testament is not LOCKED.', 'Check error reason.');
+      errorRaised = true;
+    }
+    assert.equal(errorRaised, true, 'Assert failure.');
+  });
 
-  // it('handles delegated token transfers', function() {
-  //   return LDAppToken.deployed().then(function(instance) {
-  //     tokenInstance = instance;
-  //     fromAccount = accounts[2];
-  //     toAccount = accounts[3];
-  //     spendingAccount = accounts[4];
-  //     // Transfer some tokens to fromAccount
-  //     return tokenInstance.transfer(fromAccount, 100, { from: accounts[1] });
-  //   }).then(function(receipt) {
-  //     // Approve spendingAccount to spend 10 tokens form fromAccount
-  //     return tokenInstance.approve(spendingAccount, 10, { from: fromAccount });
-  //   }).then(function(receipt) {
-  //     // Try transferring something larger than the sender's balance
-  //     return tokenInstance.transferFrom(fromAccount, toAccount, 9999, { from: spendingAccount });
-  //   }).then(assert.fail).catch(function(error) {
-  //     assert(error.message.indexOf('revert') >= 0, 'cannot transfer value larger than balance');
-  //     // Try transferring something larger than the approved amount
-  //     return tokenInstance.transferFrom(fromAccount, toAccount, 20, { from: spendingAccount });
-  //   }).then(assert.fail).catch(function(error) {
-  //     assert(error.message.indexOf('revert') >= 0, 'cannot transfer value larger than approved amount');
-  //     return tokenInstance.transferFrom.call(fromAccount, toAccount, 10, { from: spendingAccount });
-  //   }).then(function(success) {
-  //     assert.equal(success, true);
-  //     return tokenInstance.transferFrom(fromAccount, toAccount, 10, { from: spendingAccount });
-  //   }).then(function(tx) {
-  //     let receipt = tx.receipt;
-  //     assert.equal(receipt.logs.length, 1, 'triggers one event');
-  //     assert.equal(receipt.logs[0].event, 'Transfer', 'should be the "Transfer" event');
-  //     assert.equal(receipt.logs[0].args._from, fromAccount, 'logs the account the tokens are transferred from');
-  //     assert.equal(receipt.logs[0].args._to, toAccount, 'logs the account the tokens are transferred to');
-  //     assert.equal(receipt.logs[0].args._value, 10, 'logs the transfer amount');
-  //     return tokenInstance.balanceOf(fromAccount);
-  //   }).then(function(balance) {
-  //     assert.equal(balance.toNumber(), 90, 'deducts the amount from the sending account');
-  //     return tokenInstance.balanceOf(toAccount);
-  //   }).then(function(balance) {
-  //     assert.equal(balance.toNumber(), 10, 'adds the amount from the receiving account');
-  //     return tokenInstance.allowance(fromAccount, spendingAccount);
-  //   }).then(function(allowance) {
-  //     assert.equal(allowance.toNumber(), 0, 'deducts the amount from the allowance');
-  //   });
-  // });
+  it('Try and fail to withdraw funds from an executed testament', async function () {
+    let errorRaised = false;
+    try {
+      await serviceInstance.withdrawTestamentFunds(web3.utils.toWei('0.00', 'ether'), { from: testatorAddress });
+    } catch (err) {
+      assert.equal(err.reason, 'Cannot withdraw testament funds: testament is not LOCKED/CANCELLED.', 'Check error reason.');
+      errorRaised = true;
+    }
+    assert.equal(errorRaised, true, 'Assert failure.');
+  });
+
+  it('Try and fail to execute an executed testament', async function () {
+    let errorRaised = false;
+    try {
+      await serviceInstance.executeTestamentOf(testatorAddress);
+    } catch (err) {
+      assert.equal(err.reason, 'Cannot execute testament: testament is not LOCKED.', 'Check error reason.');
+      errorRaised = true;
+    }
+    assert.equal(errorRaised, true, 'Assert failure.');
+  });
+
+  // update details - each field
+  // new testament - each field
+
 });
