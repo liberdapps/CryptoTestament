@@ -124,12 +124,23 @@ contract('CryptoTestament', function (accounts) {
     assert.equal(errorRaised, true, 'Assert failure.');
   });
 
+  it('Try and fail to create new testament - Invalid beneficiary address', async function () {
+    let errorRaised = false;
+    try {
+      await serviceInstance.setupTestament('0x0000000000000000000000000000000000000000', 30 * 24 * 3600, "", "", { from: testatorAddress });
+    } catch (err) {
+      assert.equal(err.reason, 'Cannot deploy testament: beneficiary address must be non-null.', 'Check error reason.');
+      errorRaised = true;
+    }
+    assert.equal(errorRaised, true, 'Assert failure.');
+  });
+
   it('Try and fail to create new testament - Invalid proof of life threshold', async function () {
     let errorRaised = false;
     try {
       await serviceInstance.setupTestament(beneficiaryAddress, (30 * 24 * 3600) - 1, "", "", { from: testatorAddress });
     } catch (err) {
-      assert.equal(err.reason, 'Proof of life threshold must be >= 30 days.', 'Check error reason.');
+      assert.equal(err.reason, 'Cannot deploy testament: proof of life threshold must be >= 30 days.', 'Check error reason.');
       errorRaised = true;
     }
     assert.equal(errorRaised, true, 'Assert failure.');
@@ -140,7 +151,7 @@ contract('CryptoTestament', function (accounts) {
     try {
       await serviceInstance.setupTestament(beneficiaryAddress, 30 * 24 * 3600, "", "", { from: testatorAddress });
     } catch (err) {
-      assert.equal(err.reason, 'Encrypted key must be set.', 'Check error reason.');
+      assert.equal(err.reason, 'Cannot deploy testament: encrypted key must be set.', 'Check error reason.');
       errorRaised = true;
     }
     assert.equal(errorRaised, true, 'Assert failure.');
@@ -151,7 +162,7 @@ contract('CryptoTestament', function (accounts) {
     try {
       await serviceInstance.setupTestament(beneficiaryAddress, 30 * 24 * 3600, "encryptedKey", "", { from: testatorAddress });
     } catch (err) {
-      assert.equal(err.reason, 'Encrypted testament info must be set.', 'Check error reason.');
+      assert.equal(err.reason, 'Cannot deploy testament: encrypted testament info must be set.', 'Check error reason.');
       errorRaised = true;
     }
     assert.equal(errorRaised, true, 'Assert failure.');
@@ -243,6 +254,59 @@ contract('CryptoTestament', function (accounts) {
       await cryptoTestament.withdrawFunds(web3.utils.toWei('0.01', 'ether'), { from: randomAddress });
     } catch (err) {
       assert.equal(err.reason, 'Cannot withdraw testament funds: sender is not the testator.', 'Check error reason.');
+      errorRaised = true;
+    }
+    assert.equal(errorRaised, true, 'Assert failure.');
+  });
+
+  it('Try and fail to update testament - Invalid beneficiary address', async function () {
+    let testamentInfo = await serviceInstance.testamentDetailsOf(testatorAddress);
+    let cryptoTestament = await CryptoTestament.at(testamentInfo.testamentAddress);
+    let errorRaised = false;
+    try {
+      await cryptoTestament.updateDetails('0x0000000000000000000000000000000000000000', 30 * 24 * 3600, "", "", { from: testatorAddress });
+    } catch (err) {
+      assert.equal(err.reason, 'Cannot update testament: beneficiary address must be non-null.', 'Check error reason.');
+      errorRaised = true;
+    }
+    assert.equal(errorRaised, true, 'Assert failure.');
+  });
+
+
+  it('Try and fail to update testament - Invalid proof of life threshold', async function () {
+    let testamentInfo = await serviceInstance.testamentDetailsOf(testatorAddress);
+    let cryptoTestament = await CryptoTestament.at(testamentInfo.testamentAddress);
+    let errorRaised = false;
+    try {
+      await cryptoTestament.updateDetails(beneficiaryAddress, (30 * 24 * 3600) - 1, "", "", { from: testatorAddress });
+    } catch (err) {
+      assert.equal(err.reason, 'Cannot update testament: proof of life threshold must be >= 30 days.', 'Check error reason.');
+      errorRaised = true;
+    }
+    assert.equal(errorRaised, true, 'Assert failure.');
+  });
+
+  it('Try and fail to update testament - Encrypted key missing', async function () {
+    let testamentInfo = await serviceInstance.testamentDetailsOf(testatorAddress);
+    let cryptoTestament = await CryptoTestament.at(testamentInfo.testamentAddress);
+    let errorRaised = false;
+    try {
+      await cryptoTestament.updateDetails(beneficiaryAddress, 30 * 24 * 3600, "", "", { from: testatorAddress });
+    } catch (err) {
+      assert.equal(err.reason, 'Cannot update testament: encrypted key must be set.', 'Check error reason.');
+      errorRaised = true;
+    }
+    assert.equal(errorRaised, true, 'Assert failure.');
+  });
+
+  it('Try and fail to update new testament - Encrypted testament info missing', async function () {
+    let testamentInfo = await serviceInstance.testamentDetailsOf(testatorAddress);
+    let cryptoTestament = await CryptoTestament.at(testamentInfo.testamentAddress);
+    let errorRaised = false;
+    try {
+      await cryptoTestament.updateDetails(beneficiaryAddress, 30 * 24 * 3600, "encryptedKey", "", { from: testatorAddress });
+    } catch (err) {
+      assert.equal(err.reason, 'Cannot update testament: encrypted testament info must be set.', 'Check error reason.');
       errorRaised = true;
     }
     assert.equal(errorRaised, true, 'Assert failure.');
@@ -650,8 +714,5 @@ contract('CryptoTestament', function (accounts) {
     }
     assert.equal(errorRaised, true, 'Assert failure.');
   });
-
-  // update details - each field
-  // new testament - each field
 
 });
