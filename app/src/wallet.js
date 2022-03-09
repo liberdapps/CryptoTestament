@@ -12,8 +12,8 @@ import AppData from './data';
 
 
 const rpcUrls = {
-    //30: 'https://public-node.rsk.co',
-    31: 'https://public-node.testnet.rsk.co'
+    30: 'https://public-node.rsk.co',
+    //31: 'https://public-node.testnet.rsk.co'
 }
 
 const supportedChains = Object.keys(rpcUrls).map(Number);
@@ -30,9 +30,13 @@ const rLogin = new RLogin({
       options: {
         id: "a1c8672b-7b1c-476b-b3d0-41c27d575920",
         network: {
-          nodeUrl: 'https://public-node.testnet.rsk.co',
-          chainId: 31,
+          nodeUrl: 'https://public-node.rsk.co',
+          chainId: 30,
         }
+        // network: {
+        //   nodeUrl: 'https://public-node.testnet.rsk.co',
+        //   chainId: 31,
+        // }
       }
     },
     torus: {
@@ -87,41 +91,5 @@ export default {
             }
             AppData.instance.loadingError = error;
         }
-
-
-        // try {
-
-
-
-        //   } catch (err) {
-        //     console.log(err);
-        //     error = err;
-        //     if (err.message) {
-        //       error = err.message;
-        //     }
-        //     App.data.loadingError = error;
-        //   }
-
-        //   Vue.component('dapp-page', App.vueApp);
-
-        //   new Vue({
-        //     el: '#app'
-        //   })
-        // } 
-
-
-        //const signedMessage = await web3.eth.personal.sign('bla', fromAddress);
-
-        //let testamentServiceContract = ;
-        //let testament = await testamentServiceContract.methods.testamentDetailsOf(fromAddress).call();
-
-
-        // const ethQuery = new Eth(resp.provider)
-        // alert(await  ethQuery.accounts());
-
-        // const provider = new ethers.providers.Web3Provider(resp.provider)
-        //   const signer = provider.getSigner()
-        //   const signedMessage = await signer.signMessage('bla');
-
     }
 };

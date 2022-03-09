@@ -307,7 +307,7 @@ export const TESTAMENT_SERVICE_ABI = [
     }
 ];
 
-export const TESTAMENT_SERVICE_ADDRESS = '0x402FE43aE5d4F8Cc93Df705cf745c63E6E4a190d'; //'0x9F386392833Fa09B9064cc49F0aCBB20d4D1937b';
+export const TESTAMENT_SERVICE_ADDRESS = '0x6F5E511515e53dF613F5b372391242dFA71784f1';
 
 export const TESTAMENT_NOTIFY_THRESHOLD = 7 * 24 * 3600;
 
@@ -425,7 +425,7 @@ export function formatUnit(value, decimals) {
 
 export function encryptUsingServiceKey(data) {
     let jsEncrypt = new JSEncrypt();
-    jsEncrypt.setPublicKey(this.SERVICE_PUBLIC_KEY);
+    jsEncrypt.setPublicKey(SERVICE_PUBLIC_KEY);
     return jsEncrypt.encrypt(data);
 }
 

@@ -81,25 +81,25 @@
                   <div class="card-body">
                       <h5 class="card-title text-primary text-center mb-3">Testament funds</h5>
 
-                      <div class="text-center mb-3" v-if="testamentLocked">
-                          <strong>Deposit address: </strong><br />
-                          <em>{{formattedTestamentAddress}}</em>
+                      <div class="text-center mb-4" v-if="testamentLocked">
+                          <strong>Deposit rBTC </strong><br />
+                          <div class="d-flex align-items justify-content-center mt-2">
+                              <input class="form-control text-center" style="width: 50%; display: inline-block" v-model="inputDepositAmount" :disabled="processing" />
+                          </div>
+                          <button type="button" class="btn btn-success mt-2" @click="depositFunds" :disabled="!validDepositAmount || processing">{{processing ? "Please, wait..." : "Deposit funds"}}</button>
                       </div>
                       <div class="alert alert-warning text-center" v-else>
                           You can't deposit funds because this testament has been {{testamentStatusString}}.
                       </div>
 
-                      <div class="text-center mb-3">
-                          <strong>Funds available for withdraw: </strong><br />
-                          <em>{{formattedBalance}}</em>
+                      <div class="text-center mb-2">
+                          <strong>Withdraw rBTC (<a href="javascript:void(0)" @click="setMaxWithdrawAmount" style="font-size: 90%">{{formattedBalance}}</a>) </strong>
                       </div>
-
                       <div class="text-center mb-1">
                           <div class="d-flex align-items justify-content-center">
-                              <input class="form-control text-center" style="width: 50%; display: inline-block" v-model="inputFundsAmount" :disabled="processing" />
-                              <input type="button" value="MAX" class="btn btn-light mx-2" @click="setMaxFundsAmount" :disabled="processing">
+                              <input class="form-control text-center" style="width: 50%; display: inline-block" v-model="inputWithdrawAmount" :disabled="processing" />
                           </div>
-                          <button type="button" class="btn btn-success mt-3" @click="withdrawFunds" :disabled="!validFundsAmount || processing">{{processing ? "Please, wait..." : "Withdraw funds"}}</button>
+                          <button type="button" class="btn btn-warning mt-2" @click="withdrawFunds" :disabled="!validWithdrawAmount || processing">{{processing ? "Please, wait..." : "Withdraw funds"}}</button>
                       </div>
                   </div>
               </div>
@@ -154,7 +154,7 @@
                   </div>
                   <div class="text-center mb-1">
                       <button type="button" class="btn btn-primary" @click="editTestament" v-if="!editMode && testament !== null && testamentLocked" :disabled="processing">{{processing ? "Please, wait..." : "Edit details"}}</button>
-                      <button type="button" class="btn btn-danger" @click="cancelTestamentChanges" v-if="editMode && testament !== null && testamentLocked" :disabled="processing">Cancel</button>
+                      <button type="button" class="btn btn-danger" style="margin-right: 1rem" @click="cancelTestamentChanges" v-if="editMode && testament !== null && testamentLocked" :disabled="processing">Cancel</button>
                       <button type="button" class="btn btn-success" @click="setupTestament" v-if="editMode || testament === null" :disabled="processing || !formValid">
                           {{processing ? "Please, wait..." : "Save"}}
                       </button>
@@ -217,13 +217,22 @@ export default {
         this.beneficiaryNameValid &&
         this.beneficiaryEmailValid &&
         this.beneficiaryAddressValid &&
-        Number(this.inputProofOfLife) >= 1
+        Number(this.inputProofOfLife) >= 30
       );
     },
 
-    validFundsAmount() {
+    validDepositAmount() {
       try {
-        let value = Utils.toBaseUnit(this.inputFundsAmount.trim(), 18);
+        let value = Utils.toBaseUnit(this.inputDepositAmount.trim(), 18);
+        return (value.toString() !== '0');  
+      } catch (err) {
+        return false;
+      }
+    },
+
+    validWithdrawAmount() {
+      try {
+        let value = Utils.toBaseUnit(this.inputWithdrawAmount.trim(), 18);
         let testamentBalance = Utils.toBN(this.testament.testamentBalance);
         return (value.toString() !== '0' && value.lte(testamentBalance));  
       } catch (err) {
@@ -312,8 +321,10 @@ export default {
         this.formInputChanged[fieldName] = true;
       },
 
-      setMaxFundsAmount() {
-        this.inputFundsAmount = Utils.formatUnit(Utils.toBN(this.testament.testamentBalance), 18)
+      setMaxWithdrawAmount() {
+        if (!this.processing) {
+          this.inputWithdrawAmount = Utils.formatUnit(Utils.toBN(this.testament.testamentBalance), 18)
+        }
       },
      
       async setupTestament() {
@@ -323,8 +334,8 @@ export default {
         let beneficiaryName = this.inputBeneficiaryName.trim();
         let beneficiaryEmail = this.inputBeneficiaryEmail.trim();
         let beneficiaryAddress = this.inputBeneficiaryAddress.trim().toLowerCase();
-        let proofOfLifeThreshold = Number(this.inputProofOfLife) * 24 * 3600;
-        let ctx = this;
+        let proofOfLifeThreshold = Number(this.inputProofOfLife) * 24 * 3600; 
+        let ctx = this; 
 
         let encryptedInfo = Utils.encryptTestament(name, email, beneficiaryName, beneficiaryEmail, wallet.encryptionKey);
 
@@ -458,6 +469,38 @@ export default {
         );       
       },
 
+      async depositFunds() {
+        let ctx = this;
+        this.processing = true;
+
+        function onError(err) {
+          ctx.processing = false;
+          console.log(err);
+
+          // Error 4001 means that user just denied the signature of the transaction, no need to show an error.
+          // The 'Invalid JSON RPC response' is a workaround for the RSK wallet which doesn't provide a good error code...
+          if (err.code !== 4001 && String(err).indexOf("Invalid JSON RPC response") === -1) {
+            let errorMsg = err;
+            if (err.message && err.message.trim().length > 0) {
+              errorMsg = err.message;
+            }
+            $("#errorMsg").text(errorMsg);
+            $("#errorModal").modal('show');
+          }
+        }
+
+        try {
+          await wallet.web3Instance.eth.sendTransaction({from: this.walletAddress, to: this.formattedTestamentAddress, value: Utils.toBaseUnit(this.inputDepositAmount.trim(), 18).toString()});
+          let testament =  await wallet.testamentServiceContract.methods.testamentDetailsOf(this.walletAddress).call();
+          Utils.parseTestament(this, testament, wallet.encryptionKey);
+          ctx.cancelTestamentChanges();
+          ctx.inputDepositAmount = "";         
+          ctx.processing = false;
+        } catch (err) {
+          onError(err);
+        } 
+      },
+
       async withdrawFunds() {
         let ctx = this;
         this.processing = true;
@@ -480,14 +523,14 @@ export default {
         
         Utils.invokeMethodAndWaitConfirmation(
           wallet.web3Instance,
-          wallet.testamentServiceContract.methods.withdrawTestamentFunds(Utils.toBaseUnit(this.inputFundsAmount.trim(), 18).toString()), 
+          wallet.testamentServiceContract.methods.withdrawTestamentFunds(Utils.toBaseUnit(this.inputWithdrawAmount.trim(), 18).toString()), 
           this.walletAddress,
           async function() {
             try {
               let testament =  await wallet.testamentServiceContract.methods.testamentDetailsOf(ctx.walletAddress).call();
               Utils.parseTestament(ctx, testament, wallet.encryptionKey);
               ctx.cancelTestamentChanges();
-              ctx.inputFundsAmount = "";         
+              ctx.inputWithdrawAmount = "";         
               ctx.processing = false;
             } catch (err) {
               onError(err);
@@ -498,6 +541,8 @@ export default {
           }
         );       
       }
+
+
     }
 
 }
