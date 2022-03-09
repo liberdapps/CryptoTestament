@@ -31,13 +31,13 @@ contract CryptoTestament {
                  string memory _encryptedKey, string memory _encryptedInfo) {
 
         // Sanity checks.             
-        require (_serviceAddress != address(0x0), "Service address must be non-null.");
-        require (_serviceFeeRate > 0, "Service fee rate must be > 0.");
-        require (_testatorAddress != address(0x0), "Testator address must be non-null.");
-        require (_beneficiaryAddress != address(0x0), "Beneficiary address must be non-null.");
-        require (_proofOfLifeThreshold >= 30 days, "Proof of life threshold must be >= 30 days.");
-        require (bytes(_encryptedKey).length > 0, "Encrypted key must be set.");
-        require (bytes(_encryptedInfo).length > 0, "Encrypted testament info must be set.");
+        require (_serviceAddress != address(0x0), "Cannot deploy testament: service address must be non-null.");
+        require (_serviceFeeRate > 0, "Cannot deploy testament: service fee rate must be > 0.");
+        require (_testatorAddress != address(0x0), "Cannot deploy testament: testator address must be non-null.");
+        require (_beneficiaryAddress != address(0x0), "Cannot deploy testament: beneficiary address must be non-null.");
+        require (_proofOfLifeThreshold >= 30 days, "Cannot deploy testament: proof of life threshold must be >= 30 days.");
+        require (bytes(_encryptedKey).length > 0, "Cannot deploy testament: encrypted key must be set.");
+        require (bytes(_encryptedInfo).length > 0, "Cannot deploy testament: encrypted testament info must be set.");
 
         // Set service details.
         serviceAddress = _serviceAddress;
@@ -207,7 +207,7 @@ contract CryptoTestamentService {
     // Testament details.
     struct Testament {
         uint256 creationTimestamp;
-        address testamentAddress;
+        address testamentAddress; 
         address testatorAddress;
         address beneficiaryAddress;
         uint256 testamentBalance;
